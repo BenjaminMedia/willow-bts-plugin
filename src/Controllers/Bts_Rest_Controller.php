@@ -50,7 +50,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
 
         // the message id was not verified, return false
         if (! $this->verifyMessageId($messageData->external_id)) {
-            error_log('Message is could not be verified: ' . $messageData->external_id);
+            error_log('Message ID could not be verified for current site: ' . $messageData->external_id);
             return new WP_Error(404, 'Post not found with message id: ' . $messageData->external_id);
         }
 
