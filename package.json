@@ -6,7 +6,8 @@
         "@wordpress/scripts": "^6.0.0"
     },
     "scripts": {
-        "dev": "wp-scripts start"
+        "dev": "wp-scripts start",
+        "build": "wp-scripts build"
     },
     "author": {
         "name": "Dwarf A/S",
