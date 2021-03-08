@@ -1,0 +1,16 @@
+{
+    "name": "bts-script",
+    "version": "1.0.0",
+    "main": "src/index.js",
+    "devDependencies": {
+        "@wordpress/scripts": "^6.0.0"
+    },
+    "scripts": {
+        "dev": "wp-scripts start"
+    },
+    "author": {
+        "name": "Dwarf A/S",
+        "url": "https://dwarf.dk",
+        "role": "developer"
+    }
+}
