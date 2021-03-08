@@ -45,7 +45,8 @@ class Bts_Rest_Controller extends WP_REST_Controller
         // TODO: remove this error_log statement
         error_log('Body json: ' . print_r($json,1));
 
-        $messageData = $json->Message;
+        // decoding the actual message (again), since it's sent as json
+        $messageData = json_decode($json->Message);
 
         // the message id was not verified, return false
         if (! $this->verifyMessageId($messageData->external_id)) {
@@ -64,9 +65,8 @@ class Bts_Rest_Controller extends WP_REST_Controller
      */
     private function verifyMessageId(string $messageId)
     {
-        // TODO: also check Willow site's name... eg. ILI, HIS etc.
         // checking if the message id belongs to this site
-        if (strpos($messageId, self::SITE_PREFIX) !== 0) {
+        if (strpos($messageId, $this->getSiteMessageIdPrefix()) !== 0) {
             return false;
         }
 
@@ -95,5 +95,16 @@ class Bts_Rest_Controller extends WP_REST_Controller
     private function isSubscriptionRequest($json): bool
     {
         return $json->Type === 'SubscriptionConfirmation';
+    }
+
+    /**
+     * Fetches the current site's message prefix
+     * @return string
+     */
+    private function getSiteMessageIdPrefix(): string
+    {
+        // TODO: get actual wordpress prefix from plugin settings!
+        // TODO: also check Willow site's name... eg. ILI, HIS etc.
+        return self::SITE_PREFIX . 'test';
     }
 }
