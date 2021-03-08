@@ -32,11 +32,17 @@ class Bts_Rest_Controller extends WP_REST_Controller
      */
     public function handle(WP_REST_Request $request)
     {
-        // TODO: implement SNS request parsing
-        error_log('Body: ' . $request->get_body());
-        error_log('is_json?: ' . ($request->is_json_content_type() ? 'true':'false'));
-
         $json = json_decode($request->get_body());
+
+        // handling subscription requests
+        if ($this->isSubscriptionRequest($json)) {
+            // handles new subscriptions, by calling the SubscribeUrl
+            file_get_contents($json->SubscribeURL);
+            // returning "a-ok" :)
+            return new WP_HTTP_Response();
+        }
+
+        // TODO: remove this error_log statement
         error_log('Body json: ' . print_r($json,1));
 
         $messageData = $json->Message;
@@ -46,6 +52,8 @@ class Bts_Rest_Controller extends WP_REST_Controller
             error_log('Message is could not be verified: ' . $messageData->external_id);
             return new WP_Error(404, 'Post not found with message id: ' . $messageData->external_id);
         }
+
+
     }
 
     /**
@@ -77,5 +85,15 @@ class Bts_Rest_Controller extends WP_REST_Controller
         $postId = substr($messageId, strpos('__', $messageId));
 
         return get_post($postId);
+    }
+
+    /**
+     * Checks if the given json object, is of type SubscriptionConfirmation
+     * @param stdClass $json
+     * @return bool
+     */
+    private function isSubscriptionRequest($json): bool
+    {
+        return $json->Type === 'SubscriptionConfirmation';
     }
 }
