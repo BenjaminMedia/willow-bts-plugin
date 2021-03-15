@@ -12,7 +12,8 @@ const LanguageCheckboxControl = ({language}) => {
 	return (
 		<CheckboxControl
 			label={language}
-			name={language.toLowerCase()}
+			name="language[]"
+			value={language.toLowerCase()}
 			checked={ isChecked }
 			onChange={ setChecked }
 		/>
