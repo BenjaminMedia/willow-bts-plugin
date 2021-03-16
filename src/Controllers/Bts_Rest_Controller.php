@@ -174,7 +174,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
     private function getPostFromMessageId($messageId)
     {
         // finds the post id, using __ as an ID splitter
-        $postId = substr($messageId, strpos('__', $messageId));
+        $postId = substr($messageId, strpos($messageId, '__') + 2);
 
         return get_post($postId);
     }
