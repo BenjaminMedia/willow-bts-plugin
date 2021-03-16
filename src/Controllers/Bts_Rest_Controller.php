@@ -138,19 +138,13 @@ class Bts_Rest_Controller extends WP_REST_Controller
             pll_set_post_language($translatedPostId, $language);
 
             // adding the translated post, to the list of translations
-//            $translations[$language] = $translatedPostId;
+            $translations[$language] = $translatedPostId;
 
             // TODO: check if we should somehow connect the master-post with this translated-post
-
-            // updating the original/main post, with all the available languages
-            pll_save_post_translations([
-                pll_get_post_language($post->ID) => $post->ID,
-                $language => $translatedPostId,
-            ]);
         }
 
         // updating the original/main post, with all the available languages
-//        pll_save_post_translations($translations);
+        pll_save_post_translations($translations);
 
         // returning a success response
         return new WP_HTTP_Response('Translations saved', 200);
