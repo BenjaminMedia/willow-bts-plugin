@@ -317,7 +317,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
             case 'sv':
             case 'se':
             case 'sv-SE':
-                return 'se';
+                return 'sv';
             case 'no':
             case 'nb':
                 return 'nb';
