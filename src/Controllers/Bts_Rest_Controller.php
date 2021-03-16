@@ -115,8 +115,9 @@ class Bts_Rest_Controller extends WP_REST_Controller
         // running through the translations, updating them using the given message data
         foreach ($messageData->translations as $translation) {
             $content = $translation->content;
+            $language = $this->translateLanguageSlug($translation->language);
             // fetching the id of the translated post
-            $translatedPostId = pll_get_post($post->ID, $translation->language);
+            $translatedPostId = pll_get_post($post->ID, $language);
 
             // creates or updates the post
             $translatedPostId = wp_insert_post([
@@ -127,24 +128,24 @@ class Bts_Rest_Controller extends WP_REST_Controller
 
             // if a post id is NOT returned after calling wp_insert_post, log the error and skip to next language
             if (0 === $translatedPostId || $translatedPostId instanceof WP_Error) {
-                error_log('Could not save translation for post ' . $post->ID . ':' . $translation->language);
+                error_log('Could not save translation for post ' . $post->ID . ':' . $language);
                 continue;
             }
 
             // TODO: handle post status, by setting it to draft? new translation should NOT be auto published.
 
             // updating the language on the post new/updated post
-            pll_set_post_language($translatedPostId, $translation->language);
+            pll_set_post_language($translatedPostId, $language);
 
             // adding the translated post, to the list of translations
-//            $translations[$translation->language] = $translatedPostId;
+//            $translations[$language] = $translatedPostId;
 
             // TODO: check if we should somehow connect the master-post with this translated-post
 
             // updating the original/main post, with all the available languages
             pll_save_post_translations([
                 pll_get_post_language($post->ID) => $post->ID,
-                $translation->language => $translatedPostId,
+                $language => $translatedPostId,
             ]);
         }
 
@@ -306,5 +307,31 @@ class Bts_Rest_Controller extends WP_REST_Controller
         $options = get_option('bts_plugin_options');
         // returns the current site's handle. E.g. WILLOW, HIST, ILI etc...
         return $options['site_handle'];
+    }
+
+    /**
+     * Translates the given language slug, into something polylang can understand
+     * @param $language
+     * @return string
+     */
+    private function translateLanguageSlug($language)
+    {
+        // handling known languages (short form)
+        switch ($language) {
+            case 'en':
+                return 'en';
+            case 'sv':
+            case 'se':
+            case 'sv-SE':
+                return 'se';
+            case 'no':
+            case 'nb':
+                return 'nb';
+            case 'fi':
+                return 'fi';
+            case 'da':
+            default:
+                return 'da';
+        }
     }
 }
