@@ -56,6 +56,16 @@ class Bts_Rest_Controller extends WP_REST_Controller
                 'callback' => [$this, 'getArticle'],
             ]
         );
+
+        // route initializing the plugin
+        register_rest_route(
+            $routeNamespace,
+            '/plugin/init',
+            [
+                'methods' => WP_REST_Server::READABLE,
+                'callback' => [$this, 'pluginInit'],
+            ]
+        );
     }
 
     /**
@@ -163,10 +173,17 @@ class Bts_Rest_Controller extends WP_REST_Controller
 
     /**
      * @param WP_REST_Request $request
-     * @return WP_HTTP_Response
+     * @return WP_Error|WP_HTTP_Response
      */
     public function getArticle(WP_REST_Request $request)
     {
+        if (! function_exists('pll_get_post_language')) {
+            return new WP_Error('500', 'Cannot find Polylang method pll_get_post_language');
+        }
+        if (! function_exists('pll_get_post_translations')) {
+            return new WP_Error('500', 'Cannot find Polylang method pll_get_post_translations');
+        }
+
         $post = get_post($request->get_param('id'));
         $postLanguage = pll_get_post_language($post->ID);
 
@@ -176,6 +193,37 @@ class Bts_Rest_Controller extends WP_REST_Controller
             'language' => $postLanguage,
             'available_languages' => array_diff(array_keys($translations), [$postLanguage]),
             'params' => $request->get_params(),
+        ]);
+    }
+
+    /**
+     * A method to call, to get basic plugin init information
+     * @param WP_REST_Request $request
+     * @return WP_Error|WP_HTTP_Response
+     */
+    public function pluginInit(WP_REST_Request $request)
+    {
+        if (! function_exists('pll_the_languages')) {
+            return new WP_Error('500', 'Cannot find Polylang method pll_the_languages');
+        }
+
+        $languageSlugs = pll_languages_list(['fields' => 'slug']);
+
+        $languages = [];
+        foreach ($languageSlugs as $languageSlug) {
+            // fetches the language itself, using PLL's internal methods
+            $language = PLL()->model->get_language($languageSlug);
+
+            $languages[] = [
+                'code' => $languageSlug,
+                'name' => $language->name,
+                'locale' => $language->locale,
+            ];
+        }
+
+        // returns basic plugin information
+        return new WP_HTTP_Response([
+            'languages' => $languages,
         ]);
     }
 
