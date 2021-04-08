@@ -40,9 +40,20 @@ class Bts_Rest_Controller extends WP_REST_Controller
             $routeNamespace,
             '/translation/create',
             [
-                // allowing multiple requests types from AWS SNS - just to make life easier
                 'methods' => WP_REST_Server::CREATABLE,
                 'callback' => [$this, 'sendPostToTranslation'],
+            ]
+        );
+
+
+
+        // route for fetching info about a single article
+        register_rest_route(
+            $routeNamespace,
+            '/articles/(?P<id>\d+)',
+            [
+                'methods' => WP_REST_Server::READABLE,
+                'callback' => [$this, 'getArticle'],
             ]
         );
     }
@@ -148,6 +159,24 @@ class Bts_Rest_Controller extends WP_REST_Controller
 
         // returning a success response
         return new WP_HTTP_Response('Translations saved', 200);
+    }
+
+    /**
+     * @param WP_REST_Request $request
+     * @return WP_HTTP_Response
+     */
+    public function getArticle(WP_REST_Request $request)
+    {
+        $post = get_post($request->get_param('id'));
+        $postLanguage = pll_get_post_language($post->ID);
+
+        $translations = pll_get_post_translations($post->ID);
+        return new WP_HTTP_Response([
+            'post_id' => $post->ID,
+            'language' => $postLanguage,
+            'available_languages' => array_diff(array_keys($translations), [$postLanguage]),
+            'params' => $request->get_params(),
+        ]);
     }
 
     /**
