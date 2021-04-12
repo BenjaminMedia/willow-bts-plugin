@@ -56,16 +56,6 @@ class Bts_Rest_Controller extends WP_REST_Controller
                 'callback' => [$this, 'getArticle'],
             ]
         );
-
-        // route initializing the plugin
-        register_rest_route(
-            $routeNamespace,
-            '/plugin/init',
-            [
-                'methods' => WP_REST_Server::READABLE,
-                'callback' => [$this, 'pluginInit'],
-            ]
-        );
     }
 
     /**
@@ -85,10 +75,26 @@ class Bts_Rest_Controller extends WP_REST_Controller
         // fetches the list of languages to translate the post into.
         $locales = $request->get_param('language');
 
-        $this->getClient()->publish([
-            'TopicArn' => $this->getTopicTranslateRequest(),
-            'Message' => \json_encode($this->buildMessageData($post, $locales)),
-        ]);
+//        $this->getClient()->publish([
+//            'TopicArn' => $this->getTopicTranslateRequest(),
+//            'Message' => \json_encode($this->buildMessageData($post, $locales)),
+//        ]);
+
+        foreach ($locales as $locale) {
+            $translatedPostId = pll_get_post_language($post->ID);
+
+            if (! $translatedPostId) {
+                // creates or updates the post
+                $translatedPostId = wp_insert_post([
+                    'ID' => $translatedPostId,
+                    'post_content' => $post->post_content,
+                    'post_title' => $post->post_title,
+                ]);
+
+                pll_set_post_language($translatedPostId, $locale);
+            }
+            add_post_meta($translatedPostId, 'translation_state', 'Sent to BTS');
+        }
 
         return new WP_HTTP_Response('Post sent to translation');
     }
@@ -172,6 +178,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
     }
 
     /**
+     * Fetches an article, based on an "id" parameter in the current request
      * @param WP_REST_Request $request
      * @return WP_Error|WP_HTTP_Response
      */
@@ -180,31 +187,30 @@ class Bts_Rest_Controller extends WP_REST_Controller
         if (! function_exists('pll_get_post_language')) {
             return new WP_Error('500', 'Cannot find Polylang method pll_get_post_language');
         }
-        if (! function_exists('pll_get_post_translations')) {
-            return new WP_Error('500', 'Cannot find Polylang method pll_get_post_translations');
-        }
 
         $post = get_post($request->get_param('id'));
         $postLanguage = pll_get_post_language($post->ID);
 
-        $translations = pll_get_post_translations($post->ID);
         return new WP_HTTP_Response([
             'post_id' => $post->ID,
             'language' => $postLanguage,
-            'available_languages' => array_diff(array_keys($translations), [$postLanguage]),
+            'languages' => $this->getLanguages($post->ID),
             'params' => $request->get_params(),
         ]);
     }
 
     /**
-     * A method to call, to get basic plugin init information
-     * @param WP_REST_Request $request
-     * @return WP_Error|WP_HTTP_Response
+     * Fetches the languages available AND already translated info state for the given postId
+     * @param $postId
+     * @return array|WP_Error
      */
-    public function pluginInit(WP_REST_Request $request)
+    private function getLanguages($postId)
     {
-        if (! function_exists('pll_the_languages')) {
-            return new WP_Error('500', 'Cannot find Polylang method pll_the_languages');
+        if (! function_exists('pll_languages_list')) {
+            return new WP_Error('500', 'Cannot find Polylang method pll_languages_list');
+        }
+        if (! function_exists('pll_get_post')) {
+            return new WP_Error('500', 'Cannot find Polylang method pll_get_post');
         }
 
         $languageSlugs = pll_languages_list(['fields' => 'slug']);
@@ -214,17 +220,17 @@ class Bts_Rest_Controller extends WP_REST_Controller
             // fetches the language itself, using PLL's internal methods
             $language = PLL()->model->get_language($languageSlug);
 
+            // fetching the translation for the given post, for the given language slug
+            $translationId = pll_get_post($postId, $languageSlug);
+
             $languages[] = [
-                'code' => $languageSlug,
+                'code' => $language->slug,
                 'name' => $language->name,
-                'locale' => $language->locale,
+                'state' => $translationId ? get_post_meta($translationId, 'translation_state', true) : null,
             ];
         }
 
-        // returns basic plugin information
-        return new WP_HTTP_Response([
-            'languages' => $languages,
-        ]);
+        return $languages;
     }
 
     /**
