@@ -3,9 +3,11 @@
 namespace Bts\Controllers;
 
 use Aws\Sns\SnsClient;
+use Exception;
 use WP_HTTP_Response;
 use WP_REST_Request;
 use WP_REST_Controller;
+use WP_REST_Response;
 use WP_REST_Server;
 use WP_Error;
 use WP_Post;
@@ -61,7 +63,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
     /**
      * Sends the given post to the translation service
      * @param WP_REST_Request $request
-     * @return WP_Error|WP_HTTP_Response
+     * @return WP_Error|WP_REST_Response
      */
     public function sendPostToTranslation(WP_REST_Request $request)
     {
@@ -93,16 +95,16 @@ class Bts_Rest_Controller extends WP_REST_Controller
 
                 pll_set_post_language($translatedPostId, $locale);
             }
-            add_post_meta($translatedPostId, 'translation_state', 'Sent to BTS');
+            $this->setMetaState($translatedPostId, 'Sent to BTS');
         }
 
-        return new WP_HTTP_Response('Post sent to translation');
+        return new WP_REST_Response('Post sent to translation');
     }
 
     /**
      * Handles incoming calls from AWS SNS
      * @param WP_REST_Request $request
-     * @return WP_Error|WP_HTTP_Response
+     * @return WP_Error|WP_REST_Response
      */
     public function handle(WP_REST_Request $request)
     {
@@ -113,7 +115,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
             // handles new subscriptions, by calling the SubscribeUrl
             file_get_contents($json->SubscribeURL);
             // returning "a-ok" :)
-            return new WP_HTTP_Response();
+            return new WP_REST_Response();
         }
 
         // TODO: remove this error_log statement
@@ -174,13 +176,13 @@ class Bts_Rest_Controller extends WP_REST_Controller
         pll_save_post_translations($translations);
 
         // returning a success response
-        return new WP_HTTP_Response('Translations saved', 200);
+        return new WP_REST_Response('Translations saved', 200);
     }
 
     /**
      * Fetches an article, based on an "id" parameter in the current request
      * @param WP_REST_Request $request
-     * @return WP_Error|WP_HTTP_Response
+     * @return WP_Error|WP_REST_Response
      */
     public function getArticle(WP_REST_Request $request)
     {
@@ -188,15 +190,43 @@ class Bts_Rest_Controller extends WP_REST_Controller
             return new WP_Error('500', 'Cannot find Polylang method pll_get_post_language');
         }
 
-        $post = get_post($request->get_param('id'));
+        try {
+            return new WP_REST_Response(
+                array_merge(
+                    $this->getArticleRaw(
+                        $request->get_param('id')
+                    ),
+                    [
+                        'params' => $request->get_params(),
+                    ]
+                )
+            );
+        } catch (Exception $e) {
+            // handling exception, by returning an WP_Error, using the details set in the exception
+            return new WP_Error($e->getCode(), $e->getMessage());
+        }
+    }
+
+    /**
+     * Fetches the article, with the given post id (this is also pages...)
+     * @param string $postId the id of the page/post to fetch
+     * @return array an array of details about the article
+     * @throws Exception exception is thrown, if polylang is not working properly
+     */
+    public function getArticleRaw($postId)
+    {
+        if (! function_exists('pll_get_post_language')) {
+            throw new Exception('Cannot find Polylang method pll_get_post_language', 500);
+        }
+
+        $post = get_post($postId);
         $postLanguage = pll_get_post_language($post->ID);
 
-        return new WP_HTTP_Response([
+        return [
             'post_id' => $post->ID,
             'language' => $postLanguage,
             'languages' => $this->getLanguages($post->ID),
-            'params' => $request->get_params(),
-        ]);
+        ];
     }
 
     /**
@@ -224,9 +254,10 @@ class Bts_Rest_Controller extends WP_REST_Controller
             $translationId = pll_get_post($postId, $languageSlug);
 
             $languages[] = [
+                'id' => $translationId,
                 'code' => $language->slug,
                 'name' => $language->name,
-                'state' => $translationId ? get_post_meta($translationId, 'translation_state', true) : null,
+                'state' => $translationId ? get_post_meta($translationId, 'bts_translation_state', true) : null,
             ];
         }
 
@@ -410,5 +441,16 @@ class Bts_Rest_Controller extends WP_REST_Controller
             default:
                 return 'da';
         }
+    }
+
+    /**
+     * Sets a new meta state for the given post translation
+     * @param string|int|WP_Post $translatedPostId the id of the translation "copy"
+     * @param string $state the new state message to set
+     */
+    private function setMetaState($translatedPostId, $state)
+    {
+        delete_post_meta($translatedPostId, 'bts_translation_state');
+        add_post_meta($translatedPostId, 'bts_translation_state', $state);
     }
 }

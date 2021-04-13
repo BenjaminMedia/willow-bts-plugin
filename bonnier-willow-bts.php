@@ -9,27 +9,39 @@
  */
 
 // adding aws library to the mix
+use Bts\Metabox;
+
 require_once 'vendor/aws/aws-autoloader.php';
 
 // adding out rest handling
 require_once 'src/Controllers/Bts_Rest_Controller.php';
+require_once 'src/Metabox.php';
 
-/**
- * Loads the various scripts to use
- */
-function enqueue_bts_editor_assets() {
-    $assets = require_once plugin_dir_path( __FILE__ ) . 'build/index.asset.php';
+// NOTE: WP5+
+//if (function_exists('enqueue_bts_editor_assets')) {
+//    /**
+//     * Loads the various scripts to use
+//     */
+//    function enqueue_bts_editor_assets() {
+//        $assets = require_once plugin_dir_path( __FILE__ ) . 'build/index.asset.php';
+//
+//        // adding the script to the admin
+//        wp_enqueue_script(
+//            'bts-script',
+//            plugin_dir_url( __FILE__ ) . '/build/index.js',
+//            $assets['dependencies'],
+//            $assets['version'],
+//            true
+//        );
+//    }
+//
+//    add_action('enqueue_block_editor_assets', 'enqueue_bts_editor_assets');
+//} else {
+	// handles loading a meta box in WP4.x
+	$metaBox = new Metabox();
+	wp_enqueue_style('bts_widget', plugin_dir_url(__FILE__) . 'css/admin.css');
+//}
 
-    // adding the script to the admin
-    wp_enqueue_script(
-        'bts-script',
-        plugin_dir_url( __FILE__ ) . '/build/index.js',
-        $assets['dependencies'],
-        $assets['version'],
-        true
-    );
-}
-add_action('enqueue_block_editor_assets', 'enqueue_bts_editor_assets');
 
 
 // adding rest routes, using a rest controller, so we do not have the entire implementation here
