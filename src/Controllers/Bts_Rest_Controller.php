@@ -347,7 +347,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
         // returns the message data to send to SNS
         return [
             'title' => $post->post_title,
-            'content' => $post->post_content,
+            'content' => $this->toXliff($post),
             'language' => [
                 'to' => $locales,
                 'from' => $postLanguage,
@@ -357,6 +357,66 @@ class Bts_Rest_Controller extends WP_REST_Controller
             'invoicing_account' => $this->getInvoicingAccount(),
             'api_key' => $this->getLwApiKey(),
         ];
+    }
+
+    /**
+     * Takes the given post and converts the content and ACF fields into an XLIFF document
+     * @param $post
+     * @return string
+     */
+    private function toXliff($post)
+    {
+        $groups = acf_get_field_groups();
+
+        // fetches the given post's language
+        $postLanguage = pll_get_post_language($post->ID);
+
+        $xml = new \SimpleXMLElement('<xml version="1.0"></xml>');
+        $xliff = $xml->addChild('xliff', '', 'urn:oasis:names:tc:xliff:document:1.2');
+        $xliff->addAttribute('version', '1.2');
+        $fileElement = $xliff->addChild('file');
+        $fileElement->addAttribute('datatype', 'x-HTML/html-utf8-b_i');
+        $fileElement->addAttribute('source-language', $postLanguage);
+        $bodyElement = $fileElement->addChild('body');
+
+        // adding "normal" post content to the document
+        $this->addXliffTransUnit(
+            $bodyElement,
+            0,
+            'post-content',
+            0,
+            $post->post_content,
+            false
+        );
+
+        // runs through the field groups, fetching the fields
+        foreach ($groups as $group) {
+            $fields = acf_get_fields($group['ID']);
+
+            foreach ($fields as $field) {
+                $this->addXliffTransUnit(
+                    $bodyElement,
+                    $field['ID'],
+                    $field['key'],
+                    $group['ID'],
+                    acf_get_value($post->ID, $field)
+                );
+            }
+        }
+
+        return $xml->asXML();
+    }
+
+    private function addXliffTransUnit($xmlElement, $fieldId, $fieldKey, $groupId, $value, $isAcf = true)
+    {
+        $element = $xmlElement->addChild('trans-unit');
+
+        $element->addAttribute('id', $fieldId);
+        $element->addAttribute('field_key', $fieldKey);
+        $element->addAttribute('group_id', $groupId);
+        $element->addAttribute('acf', (int)$isAcf);
+
+        $element->addChild('source', $value);
     }
 
     /**
