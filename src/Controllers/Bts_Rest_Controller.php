@@ -77,10 +77,10 @@ class Bts_Rest_Controller extends WP_REST_Controller
         // fetches the list of languages to translate the post into.
         $locales = $request->get_param('language');
 
-//        $this->getClient()->publish([
-//            'TopicArn' => $this->getTopicTranslateRequest(),
-//            'Message' => \json_encode($this->buildMessageData($post, $locales)),
-//        ]);
+        $this->getClient()->publish([
+            'TopicArn' => $this->getTopicTranslateRequest(),
+            'Message' => \json_encode($this->buildMessageData($post, $locales)),
+        ]);
 
         foreach ($locales as $locale) {
             $translatedPostId = pll_get_post_language($post->ID);
@@ -143,7 +143,31 @@ class Bts_Rest_Controller extends WP_REST_Controller
 
         // running through the translations, updating them using the given message data
         foreach ($messageData->translations as $translation) {
-            $content = $translation->content;
+            // handling XLIFF documents from BTS
+            $xml = new \SimpleXMLElement($translation->content);
+            // post content goes here
+            $content = '';
+            // list of acf fields goes here
+            $acfFields = [];
+            /** @var \SimpleXMLElement $element */
+            foreach ($xml->xliff->file->body->{'trans-unit'} as $element) {
+                // handling post content here, which should just be saved on the post
+                if ($element['field_key'] === 'post-content') {
+                    $content = $element->source;
+                } else {
+                    // handling ACF fields
+                    $acfFields[] = [
+                        'field_id' => $element['field_id'],
+                        'content' => $element->source,
+                        // these attributes are mostly for debugging if something happens
+                        'field_key' => $element['field_key'],
+                        'group_id' => $element['group_id'],
+                        'group_key' => $element['group_key'],
+                    ];
+                }
+            }
+
+
             $language = $this->translateLanguageSlug($translation->language);
             // fetching the id of the translated post
             $translatedPostId = pll_get_post($post->ID, $language);
@@ -160,6 +184,14 @@ class Bts_Rest_Controller extends WP_REST_Controller
                 error_log('Could not save translation for post ' . $post->ID . ':' . $language);
                 continue;
             }
+
+            // running through the list of found ACF fields, and updates the values on the current translated post
+            foreach ($acfFields as $acfField) {
+                $field = acf_get_field($acfField['field_id']);
+                // updating the act field data on the post
+                acf_update_value($acfField['content'], $translatedPostId, $field);
+            }
+
 
             // TODO: handle post status, by setting it to draft? new translation should NOT be auto published.
 
@@ -361,7 +393,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
 
     /**
      * Takes the given post and converts the content and ACF fields into an XLIFF document
-     * @param $post
+     * @param WP_Post $post
      * @return string
      */
     private function toXliff($post)
@@ -382,9 +414,10 @@ class Bts_Rest_Controller extends WP_REST_Controller
         // adding "normal" post content to the document
         $this->addXliffTransUnit(
             $bodyElement,
-            0,
-            'post-content',
-            0,
+            [
+                'key' => 'post-content',
+            ],
+            null,
             $post->post_content,
             false
         );
@@ -396,9 +429,8 @@ class Bts_Rest_Controller extends WP_REST_Controller
             foreach ($fields as $field) {
                 $this->addXliffTransUnit(
                     $bodyElement,
-                    $field['ID'],
-                    $field['key'],
-                    $group['ID'],
+                    $field,
+                    $group,
                     acf_get_value($post->ID, $field)
                 );
             }
@@ -407,13 +439,16 @@ class Bts_Rest_Controller extends WP_REST_Controller
         return $xml->asXML();
     }
 
-    private function addXliffTransUnit($xmlElement, $fieldId, $fieldKey, $groupId, $value, $isAcf = true)
+    private function addXliffTransUnit($xmlElement, $field, $group, $value, $isAcf = true)
     {
         $element = $xmlElement->addChild('trans-unit');
 
-        $element->addAttribute('id', $fieldId);
-        $element->addAttribute('field_key', $fieldKey);
-        $element->addAttribute('group_id', $groupId);
+        $element->addAttribute('field_id', $field['ID'] ?? '');
+        $element->addAttribute('field_key', $field['key'] ?? '');
+        $element->addAttribute('field_name', $field['name'] ?? '');
+        $element->addAttribute('group_id', $group['ID'] ?? '');
+        $element->addAttribute('group_key', $group['key'] ?? '');
+        $element->addAttribute('group_order', $group['menu_order'] ?? '');
         $element->addAttribute('acf', (int)$isAcf);
 
         $element->addChild('source', $value);
