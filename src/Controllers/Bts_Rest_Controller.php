@@ -193,7 +193,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
             }
 
 
-            // TODO: handle post status, by setting it to draft? new translation should NOT be auto published.
+            // NOTE: how should we handle post status? by setting it to draft? new translation should NOT be auto published.
 
             // updating the language on the post new/updated post
             pll_set_post_language($translatedPostId, $language);
@@ -201,7 +201,8 @@ class Bts_Rest_Controller extends WP_REST_Controller
             // adding the translated post, to the list of translations
             $translations[$language] = $translatedPostId;
 
-            // TODO: check if we should somehow connect the master-post with this translated-post
+            // setting the current state of the translation
+            $this->setMetaState($translatedPostId, 'Translated');
         }
 
         // updating the original/main post, with all the available languages
