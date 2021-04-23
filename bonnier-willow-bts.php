@@ -37,12 +37,11 @@ require_once 'src/Metabox.php';
 //
 //    add_action('enqueue_block_editor_assets', 'enqueue_bts_editor_assets');
 //} else {
-	// handles loading a meta box in WP4.x
-	$metaBox = new Metabox();
-	wp_enqueue_style('bts_widget', plugin_dir_url(__FILE__) . 'css/admin.css');
-//}
-
-
+    // handles loading a meta box in WP4.x
+    new Metabox();
+    wp_enqueue_style('bts_widget', plugin_dir_url(__FILE__) . 'css/admin.css');
+    wp_enqueue_script('bts_widget', plugin_dir_url(__FILE__) . 'javascript/admin.js');
+// }
 
 // adding rest routes, using a rest controller, so we do not have the entire implementation here
 // TODO: add "Resource Discovery"

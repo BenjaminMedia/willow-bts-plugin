@@ -77,26 +77,26 @@ class Bts_Rest_Controller extends WP_REST_Controller
         // fetches the list of languages to translate the post into.
         $locales = $request->get_param('language');
 
-        $this->getClient()->publish([
-            'TopicArn' => $this->getTopicTranslateRequest(),
-            'Message' => \json_encode($this->buildMessageData($post, $locales)),
-        ]);
-
-        foreach ($locales as $locale) {
-            $translatedPostId = pll_get_post_language($post->ID);
-
-            if (! $translatedPostId) {
-                // creates or updates the post
-                $translatedPostId = wp_insert_post([
-                    'ID' => $translatedPostId,
-                    'post_content' => $post->post_content,
-                    'post_title' => $post->post_title,
-                ]);
-
-                pll_set_post_language($translatedPostId, $locale);
-            }
-            $this->setMetaState($translatedPostId, 'Sent to BTS');
-        }
+//        $this->getClient()->publish([
+//            'TopicArn' => $this->getTopicTranslateRequest(),
+//            'Message' => \json_encode($this->buildMessageData($post, $locales)),
+//        ]);
+//
+//        foreach ($locales as $locale) {
+//            $translatedPostId = pll_get_post_language($post->ID);
+//
+//            if (! $translatedPostId) {
+//                // creates or updates the post
+//                $translatedPostId = wp_insert_post([
+//                    'ID' => $translatedPostId,
+//                    'post_content' => $post->post_content,
+//                    'post_title' => $post->post_title,
+//                ]);
+//
+//                pll_set_post_language($translatedPostId, $locale);
+//            }
+//            $this->setMetaState($translatedPostId, 'Sent to BTS');
+//        }
 
         return new WP_REST_Response('Post sent to translation');
     }
@@ -387,8 +387,13 @@ class Bts_Rest_Controller extends WP_REST_Controller
             ],
             'external_id' => $this->generateExternalIdFromPost($post),
             'fast' => $options['fast'] ?? false,
+            'comment' => $options['comment'],
+            'deadline' => $options['deadline'],
             'invoicing_account' => $this->getInvoicingAccount(),
             'api_key' => $this->getLwApiKey(),
+            'service_id' => $this->getLwServiceId(),
+            'work_area' => $this->getLwWorkArea(),
+            'terminology' => $this->getLwTerminology(),
         ];
     }
 
@@ -440,6 +445,14 @@ class Bts_Rest_Controller extends WP_REST_Controller
         return $xml->asXML();
     }
 
+    /**
+     * Adds a new trans-unit to the given $xmlElement.
+     * @param \SimpleXMLElement $xmlElement the parent xml element to add the trans-unit element to.
+     * @param array $field the field itself (ACF related)
+     * @param array $group the fields group (ACF related)
+     * @param string $value the content of the field to send
+     * @param bool $isAcf set this to false to say it's not an ACF field (e.g. $post->post_content)
+     */
     private function addXliffTransUnit($xmlElement, $field, $group, $value, $isAcf = true)
     {
         $element = $xmlElement->addChild('trans-unit');
@@ -548,5 +561,41 @@ class Bts_Rest_Controller extends WP_REST_Controller
     {
         delete_post_meta($translatedPostId, 'bts_translation_state');
         add_post_meta($translatedPostId, 'bts_translation_state', $state);
+    }
+
+    /**
+     * Fetches the service id to use on LW
+     * @return mixed
+     */
+    private function getLwServiceId()
+    {
+        // fetches the saved options
+        $options = get_option('bts_plugin_options');
+        // returns the service id
+        return $options['lw_service_id'];
+    }
+
+    /**
+     * Fetches the work are to use on LW
+     * @return mixed
+     */
+    private function getLwWorkArea()
+    {
+        // fetches the saved options
+        $options = get_option('bts_plugin_options');
+        // returns the work area
+        return $options['lw_work_area'];
+    }
+
+    /**
+     * Fetches the terminology to use on LW
+     * @return mixed
+     */
+    private function getLwTerminology()
+    {
+        // fetches the saved options
+        $options = get_option('bts_plugin_options');
+        // returns the work area
+        return $options['lw_terminology'];
     }
 }
