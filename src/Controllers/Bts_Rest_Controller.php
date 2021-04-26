@@ -584,7 +584,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
         // fetches the saved options
         $options = get_option('bts_plugin_options');
         // returns the work area
-        return $options['lw_work_area'];
+        return $options['lw_workarea'];
     }
 
     /**

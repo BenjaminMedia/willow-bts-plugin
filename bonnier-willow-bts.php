@@ -96,8 +96,11 @@ function bts_register_settings() {
 
     add_settings_section( 'bts_plugin_lw_settings', 'Language Wire Settings', 'bts_plugin_lw_section_text', 'bts_plugin_settings' );
     // adding fields to the lw settings section
-    add_settings_field( 'bts_plugin_setting_lw_invoicing_account', 'Invoicing account', 'bts_plugin_setting_lw_invoicing_account', 'bts_plugin_settings', 'bts_plugin_lw_settings' );
     add_settings_field( 'bts_plugin_setting_lw_api_key', 'API key', 'bts_plugin_setting_lw_api_key', 'bts_plugin_settings', 'bts_plugin_lw_settings' );
+    add_settings_field( 'bts_plugin_setting_lw_invoicing_account', 'Invoicing account', 'bts_plugin_setting_lw_invoicing_account', 'bts_plugin_settings', 'bts_plugin_lw_settings' );
+    add_settings_field( 'bts_plugin_setting_lw_terminology', 'Terminology', 'bts_plugin_setting_lw_terminology', 'bts_plugin_settings', 'bts_plugin_lw_settings' );
+    add_settings_field( 'bts_plugin_setting_lw_workarea', 'Workarea', 'bts_plugin_setting_lw_workarea', 'bts_plugin_settings', 'bts_plugin_lw_settings' );
+    add_settings_field( 'bts_plugin_setting_lw_service_id', 'Service ID', 'bts_plugin_setting_lw_service_id', 'bts_plugin_settings', 'bts_plugin_lw_settings' );
 }
 
 add_action('admin_init', 'bts_register_settings');
@@ -188,4 +191,25 @@ function bts_plugin_setting_lw_invoicing_account() {
 function bts_plugin_setting_lw_api_key() {
     $options = get_option('bts_plugin_options');
     echo "<input id='bts_plugin_setting_lw_api_key' name='bts_plugin_options[lw_api_key]' type='text' value='" . esc_attr($options['lw_api_key']) . "' />";
+}
+/**
+ * Callback method for handling the Language Wire service id field
+ */
+function bts_plugin_setting_lw_service_id() {
+    $options = get_option('bts_plugin_options');
+    echo "<input id='bts_plugin_setting_lw_service_id' name='bts_plugin_options[lw_service_id]' type='text' value='" . esc_attr($options['lw_service_id']) . "' />";
+}
+/**
+ * Callback method for handling the Language Wire workarea field
+ */
+function bts_plugin_setting_lw_workarea() {
+    $options = get_option('bts_plugin_options');
+    echo "<input id='bts_plugin_setting_lw_workarea' name='bts_plugin_options[lw_workarea]' type='text' value='" . esc_attr($options['lw_workarea']) . "' />";
+}
+/**
+ * Callback method for handling the Language Wire termninology field
+ */
+function bts_plugin_setting_lw_terminology() {
+    $options = get_option('bts_plugin_options');
+    echo "<input id='bts_plugin_setting_lw_terminology' name='bts_plugin_options[lw_terminology]' type='text' value='" . esc_attr($options['lw_terminology']) . "' />";
 }
