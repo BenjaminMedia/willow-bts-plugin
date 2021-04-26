@@ -77,26 +77,26 @@ class Bts_Rest_Controller extends WP_REST_Controller
         // fetches the list of languages to translate the post into.
         $locales = $request->get_param('language');
 
-//        $this->getClient()->publish([
-//            'TopicArn' => $this->getTopicTranslateRequest(),
-//            'Message' => \json_encode($this->buildMessageData($post, $locales)),
-//        ]);
-//
-//        foreach ($locales as $locale) {
-//            $translatedPostId = pll_get_post_language($post->ID);
-//
-//            if (! $translatedPostId) {
-//                // creates or updates the post
-//                $translatedPostId = wp_insert_post([
-//                    'ID' => $translatedPostId,
-//                    'post_content' => $post->post_content,
-//                    'post_title' => $post->post_title,
-//                ]);
-//
-//                pll_set_post_language($translatedPostId, $locale);
-//            }
-//            $this->setMetaState($translatedPostId, 'Sent to BTS');
-//        }
+        $this->getClient()->publish([
+            'TopicArn' => $this->getTopicTranslateRequest(),
+            'Message' => \json_encode($this->buildMessageData($post, $locales)),
+        ]);
+
+        foreach ($locales as $locale) {
+            $translatedPostId = pll_get_post_language($post->ID);
+
+            if (! $translatedPostId) {
+                // creates or updates the post
+                $translatedPostId = wp_insert_post([
+                    'ID' => $translatedPostId,
+                    'post_content' => $post->post_content,
+                    'post_title' => $post->post_title,
+                ]);
+
+                pll_set_post_language($translatedPostId, $locale);
+            }
+            $this->setMetaState($translatedPostId, 'Sent to BTS');
+        }
 
         return new WP_REST_Response('Post sent to translation');
     }
