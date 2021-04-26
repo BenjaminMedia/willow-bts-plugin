@@ -75,15 +75,20 @@ class Bts_Rest_Controller extends WP_REST_Controller
         }
 
         // fetches the list of languages to translate the post into.
-        $locales = $request->get_param('language');
+        $locales = explode(',', $request->get_param('languages'));
 
         $this->getClient()->publish([
             'TopicArn' => $this->getTopicTranslateRequest(),
             'Message' => \json_encode($this->buildMessageData($post, $locales)),
         ]);
 
+        // fetching the current list of translations.
+        $translations = pll_get_post_translations($postId);
+        error_log('current translations: ' . print_r($translations,1));
+
         foreach ($locales as $locale) {
-            $translatedPostId = pll_get_post_language($post->ID);
+            $translatedPostId = $translations[$locale] ?? null;
+            error_log('translatedPostId: ' . $translatedPostId . ' :: '.$locale.':'. $translations[$locale]);
 
             if (! $translatedPostId) {
                 // creates or updates the post
@@ -95,8 +100,16 @@ class Bts_Rest_Controller extends WP_REST_Controller
 
                 pll_set_post_language($translatedPostId, $locale);
             }
+
+            // setting the locale and post id associated.
+            // if the locale already exists, then we just update the post id.
+            // if it's a new post, then it's added.
+            $translations[$locale] = $translatedPostId;
+
             $this->setMetaState($translatedPostId, 'Sent to BTS');
         }
+
+        pll_save_post_translations($translations);
 
         return new WP_REST_Response('Post sent to translation');
     }

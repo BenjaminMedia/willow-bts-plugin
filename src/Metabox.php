@@ -54,7 +54,6 @@ class Metabox
             if(! wp_verify_nonce($_POST['bts_nonce'], 'bts_nonce_action')) {
                 die(-1);
             }
-
             // getting the languages as a string
 			$languages = implode(',', array_keys($_POST['bts_languages']));
 
