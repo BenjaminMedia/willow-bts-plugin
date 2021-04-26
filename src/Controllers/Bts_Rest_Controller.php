@@ -84,11 +84,9 @@ class Bts_Rest_Controller extends WP_REST_Controller
 
         // fetching the current list of translations.
         $translations = pll_get_post_translations($postId);
-        error_log('current translations: ' . print_r($translations,1));
 
         foreach ($locales as $locale) {
             $translatedPostId = $translations[$locale] ?? null;
-            error_log('translatedPostId: ' . $translatedPostId . ' :: '.$locale.':'. $translations[$locale]);
 
             if (! $translatedPostId) {
                 // creates or updates the post
