@@ -3,15 +3,15 @@
 /**
  * Plugin Name: Bonnier Willow BTS
  * Description: Plugin to add translations to a Willow site, using the BTS service.
- * Version: 0.1.0
- * Author: Dwarf A/S
- * Author URI: https://dwarf.dk
+ * Version: 1.0.0
+ * Author: Bonnier Publications
+ * Author URI: https://bonnierpublications.com
  */
 
 // adding aws library to the mix
 use Bts\Metabox;
 
-require_once 'vendor/aws/aws-autoloader.php';
+require_once 'vendor/autoload.php';
 
 // adding out rest handling
 require_once 'src/Controllers/Bts_Rest_Controller.php';

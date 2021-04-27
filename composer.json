@@ -1,0 +1,23 @@
+{
+    "name": "benjaminmedia/wp-willow-bts",
+    "description": "Plugin to add translations to a Willow site, using the BTS service.",
+    "type": "wordpress-plugin",
+    "keywords": ["wordpress", "plugin"],
+    "homepage": "https://github.com/BenjaminMedia/willow-bts-plugin",
+    "authors": [
+        {
+            "name": "Bonnier Publications",
+            "email": "interactive@bonnier.dk",
+            "homepage": "https://bonnierpublications.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.1",
+        "aws/aws-sdk-php": "^3.178"
+    },
+    "autoload": {
+        "psr-4": {
+            "Bts\\": "src"
+        }
+    }
+}
