@@ -38,7 +38,7 @@ class Metabox
             'bonnier-willow-bts',
             __('BTS Translations', 'bts'),
             [$this, 'renderMetabox'],
-            'post',
+            ['post', 'page', 'contenthub_composite'],
             'side'
         );
     }
