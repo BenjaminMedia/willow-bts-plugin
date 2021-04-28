@@ -420,9 +420,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
         // fetches the given post's language
         $postLanguage = pll_get_post_language($post->ID);
 
-        $xml = new \SimpleXMLElement('<xml version="1.0"></xml>');
-        $xliff = $xml->addChild('xliff', '', 'urn:oasis:names:tc:xliff:document:1.2');
-        $xliff->addAttribute('version', '1.2');
+        $xliff = new \SimpleXMLElement('<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2"></xliff>');
         $fileElement = $xliff->addChild('file');
         $fileElement->addAttribute('datatype', 'x-HTML/html-utf8-b_i');
         $fileElement->addAttribute('source-language', $postLanguage);
@@ -453,7 +451,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
             }
         }
 
-        return $xml->asXML();
+        return $xliff->asXML();
     }
 
     /**
