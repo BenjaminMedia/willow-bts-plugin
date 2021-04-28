@@ -11,7 +11,7 @@
 // adding aws library to the mix
 use Bts\Metabox;
 
-require_once 'vendor/autoload.php';
+//require_once 'vendor/autoload.php';
 
 // adding out rest handling
 require_once 'src/Controllers/Bts_Rest_Controller.php';
@@ -39,8 +39,12 @@ require_once 'src/Metabox.php';
 //} else {
     // handles loading a meta box in WP4.x
     new Metabox();
-    wp_enqueue_style('bts_widget', plugin_dir_url(__FILE__) . 'css/admin.css');
-    wp_enqueue_script('bts_widget', plugin_dir_url(__FILE__) . 'javascript/admin.js');
+
+	add_action( 'admin_enqueue_scripts', function () {
+		wp_enqueue_script('bts_widget', plugin_dir_url(__FILE__) . 'javascript/admin.js');
+		wp_enqueue_style('bts_widget', plugin_dir_url(__FILE__) . 'css/admin.css');
+	});
+
 // }
 
 // adding rest routes, using a rest controller, so we do not have the entire implementation here

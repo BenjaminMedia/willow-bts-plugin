@@ -27,7 +27,6 @@ class Metabox
     public function initMetabox()
     {
         add_action('add_meta_boxes', [$this, 'addMetabox']);
-        add_action('', [$this, 'bts_translate_request_action']);
     }
 
     /**
