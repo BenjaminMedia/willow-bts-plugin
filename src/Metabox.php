@@ -48,7 +48,7 @@ class Metabox
      */
     public function initActions()
     {
-        if ($_POST['action'] === 'bts_translate_request_action') {
+        if (!empty($_POST['action']) && $_POST['action'] === 'bts_translate_request_action') {
         	// verifying the nonce that was created
             if(! wp_verify_nonce($_POST['bts_nonce'], 'bts_nonce_action')) {
                 die(-1);
