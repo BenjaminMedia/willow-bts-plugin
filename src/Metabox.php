@@ -49,42 +49,52 @@ class Metabox
     public function initActions()
     {
         if (!empty($_POST['action']) && $_POST['action'] === 'bts_translate_request_action') {
-        	// verifying the nonce that was created
+            // verifying the nonce that was created
             if(! wp_verify_nonce($_POST['bts_nonce'], 'bts_nonce_action')) {
                 die(-1);
             }
             // getting the languages as a string
-			$languages = implode(',', array_keys($_POST['bts_languages']));
-
-            $request = new WP_REST_Request(
-	       		'POST',
-				'/bonnier-willow-bts/v1/translation/create'
-			);
+            $languages = implode(',', array_keys($_POST['bts_languages']));
 
             $postId = $_POST['post_ID'];
+            $comment = $_POST['bts_comment'];
+            $deadline = $_POST['bts_deadline'];
 
-            $request->set_param('post_id', $postId);
-            $request->set_param('languages', $languages);
-            $request->set_param('comment', $_POST['bts_comment']);
-            $request->set_param('deadline', $_POST['bts_deadline']);
-            $response = rest_do_request($request);
+            $curl = curl_init();
+            $url = get_rest_url() . 'bonnier-willow-bts/v1/translation/create';
+            curl_setopt_array($curl, array(
+                CURLOPT_URL => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_ENCODING => "",
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => "POST",
+                CURLOPT_POST => 1,
+                CURLOPT_POSTFIELDS => "post_id=$postId&languages=$languages&comment=$comment&deadline=$deadline",
+                CURLOPT_HTTPHEADER => array(
+                ),
+            ));
+            $response = curl_exec($curl);
+            $httpcode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
 
-            if ($response->get_status() === 200) {
-            	// since all went well, we refetch the given article data, so we can show translation states
+            if ($httpcode === 200) {
+                // since all went well, we refetch the given article data, so we can show translation states
                 $btsService = new Bts_Rest_Controller();
                 $data = $btsService->getArticleRaw($postId);
 
-				echo json_encode([
-					'message' => $response->get_data(),
-					'status' => $response->get_status(),
-					'article' => $data,
-				]);
-			} else {
-            	echo json_encode([
-            		'message' => $response->get_data(),
-					'status' => 400,
-				]);
-			}
+                echo json_encode([
+                    'message' => $response,
+                    'status' => $httpcode,
+                    'article' => $data,
+                ]);
+            } else {
+                echo json_encode([
+                    'message' => $response,
+                    'status' => 400,
+                ]);
+            }
 
 
             wp_die();
@@ -104,44 +114,44 @@ class Metabox
         ?>
         <div class="bts-widget" id="bts-widget-area">
             <div class="bts-widget-content">
-				<div class="bts-languages">
-					<?php
+                <div class="bts-languages">
+                    <?php
 
-					// Add nonce for security and authentication.
-					wp_nonce_field('bts_nonce_action', 'bts_nonce');
+                    // Add nonce for security and authentication.
+                    wp_nonce_field('bts_nonce_action', 'bts_nonce');
 
-					foreach ($data['languages'] as $language) {
-						// skipping the articles current language
-						if ($language['code'] === $data['language']) {
-							continue;
-						}
-						// no longer preselecting translated content, since we want the user to pick the ones to translate "now"
-						//$selected = ! empty($language['state']) ? 'checked="checked"' : '';
-						?>
-						<div>
-							<label>
-								<input type="checkbox" class="bts-language-checkbox" name="bts_languages[<?php echo $language['code']; ?>]" data-language="<?php echo $language['code']; ?>"  />
-								<?php echo $language['name']; ?>
-							</label>
+                    foreach ($data['languages'] as $language) {
+                        // skipping the articles current language
+                        if ($language['code'] === $data['language']) {
+                            continue;
+                        }
+                        // no longer preselecting translated content, since we want the user to pick the ones to translate "now"
+                        //$selected = ! empty($language['state']) ? 'checked="checked"' : '';
+                        ?>
+                        <div>
+                            <label>
+                                <input type="checkbox" class="bts-language-checkbox" name="bts_languages[<?php echo $language['code']; ?>]" data-language="<?php echo $language['code']; ?>"  />
+                                <?php echo $language['name']; ?>
+                            </label>
 
-							<span class="bts-status js-bts-status" data-language="<?php echo $language['code']; ?>"><?php echo (! empty($language['state'])) ? '('. __($language['state'], 'bts_states') .')' : ''; ?></span>
-						</div>
+                            <span class="bts-status js-bts-status" data-language="<?php echo $language['code']; ?>"><?php echo (! empty($language['state'])) ? '('. __($language['state'], 'bts_states') .')' : ''; ?></span>
+                        </div>
 
-					<?php } ?>
-				</div>
-				<div class="bts_extra_fields">
-					<div>
-						<label for="bts_comment">Skriv kommentar til oversætter</label>
-						<textarea name="bts_comment" id="js-bts_comment"></textarea>
-					</div>
-					<div>
-						<label for="bts_date">Vælg deadline</label>
-						<input type="date" name="bts_deadline" id="js-bts_deadline" />
-					</div>
-				</div>
+                    <?php } ?>
+                </div>
+                <div class="bts_extra_fields">
+                    <div>
+                        <label for="bts_comment">Skriv kommentar til oversætter</label>
+                        <textarea name="bts_comment" id="js-bts_comment"></textarea>
+                    </div>
+                    <div>
+                        <label for="bts_date">Vælg deadline</label>
+                        <input type="date" name="bts_deadline" id="js-bts_deadline" />
+                    </div>
+                </div>
             </div>
             <div class="bts-actions-area">
-				<span id="js-bts-form-submit-status" class="bts-form-submit-status"></span>
+                <span id="js-bts-form-submit-status" class="bts-form-submit-status"></span>
                 <input id="bts-form-submit" type="submit" class="button button-large" value="Send til oversættelse" />
             </div>
         </div>
