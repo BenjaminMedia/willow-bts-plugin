@@ -270,7 +270,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
             'post_id' => $post->ID,
             'language' => $postLanguage,
             'languages' => $this->getLanguages($post->ID),
-//            'acf_data' => $this->getAcfContent($post),
+            'acf_data' => $this->getAcfContent($post),
         ];
     }
 
