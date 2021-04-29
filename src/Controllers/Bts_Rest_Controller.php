@@ -77,8 +77,6 @@ class Bts_Rest_Controller extends WP_REST_Controller
         // fetches the list of languages to translate the post into.
         $locales = explode(',', $request->get_param('languages'));
 
-        $this->toXliff($post);
-
         $this->getClient()->publish([
             'TopicArn' => $this->getTopicTranslateRequest(),
             'Message' => \json_encode($this->buildMessageData($post, $locales, $request->get_body_params())),
