@@ -494,7 +494,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
         $element->addAttribute('_type', $field['_type'] ?? '');
         $element->addAttribute('acf', (int)$isAcf);
 
-        $element->addChild('source', $field['content']);
+        $element->addChild('source', is_string($field['content']) ? $field['content']: '');
     }
 
     /**
