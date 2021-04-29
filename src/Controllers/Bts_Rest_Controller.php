@@ -415,7 +415,6 @@ class Bts_Rest_Controller extends WP_REST_Controller
      */
     private function toXliff($post)
     {
-
         // fetches the given post's language
         $postLanguage = pll_get_post_language($post->ID);
 
@@ -431,7 +430,6 @@ class Bts_Rest_Controller extends WP_REST_Controller
             [
                 'key' => 'post-content',
             ],
-            null,
             $post->post_content,
             false
         );
@@ -442,25 +440,9 @@ class Bts_Rest_Controller extends WP_REST_Controller
             $this->addXliffTransUnit(
                 $bodyElement,
                 $field,
-                [],
                 acf_get_value($post->ID, $field)
             );
         }
-
-//        $groups = acf_get_field_groups();
-//        // runs through the field groups, fetching the fields
-//        foreach ($groups as $group) {
-//            $fields = acf_get_fields($group['ID']);
-//
-//            foreach ($fields as $field) {
-//                $this->addXliffTransUnit(
-//                    $bodyElement,
-//                    $field,
-//                    $group,
-//                    acf_get_value($post->ID, $field)
-//                );
-//            }
-//        }
 
         return $xliff->asXML();
     }
@@ -469,20 +451,16 @@ class Bts_Rest_Controller extends WP_REST_Controller
      * Adds a new trans-unit to the given $xmlElement.
      * @param \SimpleXMLElement $xmlElement the parent xml element to add the trans-unit element to.
      * @param array $field the field itself (ACF related)
-     * @param array $group the fields group (ACF related)
      * @param string $value the content of the field to send
      * @param bool $isAcf set this to false to say it's not an ACF field (e.g. $post->post_content)
      */
-    private function addXliffTransUnit($xmlElement, $field, $group, $value, $isAcf = true)
+    private function addXliffTransUnit($xmlElement, $field, $value, $isAcf = true)
     {
         $element = $xmlElement->addChild('trans-unit');
 
         $element->addAttribute('field_id', $field['ID'] ?? '');
         $element->addAttribute('field_key', $field['key'] ?? '');
         $element->addAttribute('field_name', $field['name'] ?? '');
-//        $element->addAttribute('group_id', $group['ID'] ?? '');
-//        $element->addAttribute('group_key', $group['key'] ?? '');
-//        $element->addAttribute('group_order', $group['menu_order'] ?? '');
         $element->addAttribute('acf', (int)$isAcf);
 
         $element->addChild('source', $value);
