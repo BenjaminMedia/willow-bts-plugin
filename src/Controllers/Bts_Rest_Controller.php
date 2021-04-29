@@ -458,48 +458,13 @@ class Bts_Rest_Controller extends WP_REST_Controller
         // the data array to return to the caller
         $data = [];
 
-        // using get_field_objects to find the acf fields on the given post.
-        $fields = get_field_objects($post->ID);
-
-        foreach ($fields as $field) {
-            $data[$field['ID']] = [
-                'ID' => $field['ID'],
-                'key' => $field['key'],
-                'name' => $field['name'],
-                'content' => acf_get_value($post->ID, $field),
-                '_type' => 'get_field_objects',
-                'acf' => 1,
-            ];
-        }
-
-        // using get_fields
-        foreach (get_fields($post->ID) as $name => $value) {
-            $field = acf_get_field($name);
-
-            if (isset($data[$field['ID']])) {
-                continue;
-            }
-
-            $data[$field['ID']] = [
-                'ID' => $field['ID'],
-                'key' => $field['key'],
-                'name' => $field['name'],
-                'content' => $value,
-                '_type' => 'get_fields',
-                'acf' => 1,
-            ];
-        }
-
         // using act_get_field_groups
         $groups = acf_get_field_groups();
         foreach ($groups as $group) {
-            $fields = acf_get_fields($group['ID']);
+            $fields = acf_get_fields($group);
 
             foreach ($fields as $field) {
-                if (isset($data[$field['ID']])) {
-                    continue;
-                }
-                $data[$field['ID']] = [
+                $data[] = [
                     'ID' => $field['ID'],
                     'key' => $field['key'],
                     'name' => $field['name'],
