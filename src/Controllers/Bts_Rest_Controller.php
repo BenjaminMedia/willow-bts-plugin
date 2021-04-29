@@ -270,6 +270,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
             'post_id' => $post->ID,
             'language' => $postLanguage,
             'languages' => $this->getLanguages($post->ID),
+            'acf_data' => $this->getAcfContent($post),
         ];
     }
 
@@ -429,18 +430,18 @@ class Bts_Rest_Controller extends WP_REST_Controller
             $bodyElement,
             [
                 'key' => 'post-content',
+                'content' => $post->post_content,
+                '_type' => 'post-content'
             ],
-            $post->post_content,
             false
         );
 
-        // using field objects instead, to get all the fields saved on the given post
-        $fields = get_field_objects($post->ID);
+        // fetching the collection of ACF fields we have on the current post
+        $fields = $this->getAcfContent($post);
         foreach ($fields as $field) {
             $this->addXliffTransUnit(
                 $bodyElement,
-                $field,
-                acf_get_value($post->ID, $field)
+                $field
             );
         }
 
@@ -448,22 +449,87 @@ class Bts_Rest_Controller extends WP_REST_Controller
     }
 
     /**
+     * Fetches the ACF content, from the given WP_Post
+     * @param WP_Post $post
+     * @return array
+     */
+    private function getAcfContent($post)
+    {
+        // the data array to return to the caller
+        $data = [];
+
+        // using get_field_objects to find the acf fields on the given post.
+        $fields = get_field_objects($post->ID);
+
+        foreach ($fields as $field) {
+            $data[$field['ID']] = [
+                'ID' => $field['ID'],
+                'key' => $field['key'],
+                'name' => $field['name'],
+                'content' => acf_get_value($post->ID, $field),
+                '_type' => 'get_field_objects',
+                'acf' => 1,
+            ];
+        }
+
+        // using get_fields
+        foreach (get_fields($post->ID) as $name => $value) {
+            $field = acf_get_field($name);
+
+            if (isset($data[$field['ID']])) {
+                continue;
+            }
+
+            $data[$field['ID']] = [
+                'ID' => $field['ID'],
+                'key' => $field['key'],
+                'name' => $field['name'],
+                'content' => $value,
+                '_type' => 'get_fields',
+                'acf' => 1,
+            ];
+        }
+
+        // using act_get_field_groups
+        $groups = acf_get_field_groups();
+        foreach ($groups as $group) {
+            $fields = acf_get_fields($group['ID']);
+
+            foreach ($fields as $field) {
+                if (isset($data[$field['ID']])) {
+                    continue;
+                }
+                $data[$field['ID']] = [
+                    'ID' => $field['ID'],
+                    'key' => $field['key'],
+                    'name' => $field['name'],
+                    'content' => acf_get_value($post->ID, $field),
+                    '_type' => 'acf_get_field_groups',
+                    'acf' => 1,
+                ];
+            }
+        }
+
+        return $data;
+    }
+
+    /**
      * Adds a new trans-unit to the given $xmlElement.
      * @param \SimpleXMLElement $xmlElement the parent xml element to add the trans-unit element to.
      * @param array $field the field itself (ACF related)
-     * @param string $value the content of the field to send
      * @param bool $isAcf set this to false to say it's not an ACF field (e.g. $post->post_content)
      */
-    private function addXliffTransUnit($xmlElement, $field, $value, $isAcf = true)
+    private function addXliffTransUnit($xmlElement, $field, $isAcf = true)
     {
         $element = $xmlElement->addChild('trans-unit');
 
         $element->addAttribute('field_id', $field['ID'] ?? '');
         $element->addAttribute('field_key', $field['key'] ?? '');
         $element->addAttribute('field_name', $field['name'] ?? '');
+        $element->addAttribute('_type', $field['_type'] ?? '');
         $element->addAttribute('acf', (int)$isAcf);
 
-        $element->addChild('source', $value);
+        $element->addChild('source', $field['content']);
     }
 
     /**
