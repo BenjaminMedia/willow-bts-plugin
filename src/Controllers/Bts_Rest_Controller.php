@@ -94,6 +94,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
                     'ID' => $translatedPostId,
                     'post_content' => $post->post_content,
                     'post_title' => $post->post_title,
+                    'post_type' => $post->post_type,
                 ]);
 
                 pll_set_post_language($translatedPostId, $locale);
