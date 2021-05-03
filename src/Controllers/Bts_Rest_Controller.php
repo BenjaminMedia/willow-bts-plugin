@@ -100,6 +100,9 @@ class Bts_Rest_Controller extends WP_REST_Controller
                 pll_set_post_language($translatedPostId, $locale);
             }
 
+            // sets the post type of the translation, to be the same as the current post
+            set_post_type($translatedPostId, $post->post_type);
+
             // setting the locale and post id associated.
             // if the locale already exists, then we just update the post id.
             // if it's a new post, then it's added.
