@@ -160,24 +160,27 @@ class Bts_Rest_Controller extends WP_REST_Controller
         foreach ($messageData->translations as $translation) {
             // handling XLIFF documents from BTS
             $xml = new \SimpleXMLElement($translation->content);
+            $xml->registerXPathNamespace('x', 'urn:oasis:names:tc:xliff:document:1.2');
+
             // post content goes here
             $content = '';
             // list of acf fields goes here
             $acfFields = [];
             /** @var \SimpleXMLElement $element */
-            foreach ($xml->xliff->file->body->{'trans-unit'} as $element) {
+//            foreach ($xml->xliff->file->body->{'trans-unit'} as $element) {
+            foreach ($xml->xpath('//x:trans-unit') as $element)
                 // handling post content here, which should just be saved on the post
-                if ($element['field_key'] === 'post-content') {
-                    $content = $element->source;
+                if ($element['field_key'] . '' === 'post-content') {
+                    $content = $element->source .'';
                 } else {
                     // handling ACF fields
                     $acfFields[] = [
-                        'field_id' => $element['field_id'],
-                        'content' => $element->source,
+                        'field_id' => $element['field_id'] .'',
+                        'content' => $element->source .'',
                         // these attributes are mostly for debugging if something happens
-                        'field_key' => $element['field_key'],
-                        'group_id' => $element['group_id'],
-                        'group_key' => $element['group_key'],
+                        'field_key' => $element['field_key'] .'',
+                        'group_id' => $element['group_id'] .'',
+                        'group_key' => $element['group_key'] .'',
                     ];
                 }
             }
