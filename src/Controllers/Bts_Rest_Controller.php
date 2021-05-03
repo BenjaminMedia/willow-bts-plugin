@@ -192,7 +192,11 @@ class Bts_Rest_Controller extends WP_REST_Controller
                 'ID' => $translatedPostId,
                 'post_content' => $content,
                 'post_title' => $translation->title,
+                'post_type' => $post->post_type,
             ]);
+
+            // sets the post type of the translation, to be the same as the current post
+            set_post_type($translatedPostId, $post->post_type);
 
             // if a post id is NOT returned after calling wp_insert_post, log the error and skip to next language
             if (0 === $translatedPostId || $translatedPostId instanceof WP_Error) {
