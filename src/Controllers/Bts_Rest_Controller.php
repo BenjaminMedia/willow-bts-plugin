@@ -167,8 +167,8 @@ class Bts_Rest_Controller extends WP_REST_Controller
             // list of acf fields goes here
             $acfFields = [];
             /** @var \SimpleXMLElement $element */
-//            foreach ($xml->xliff->file->body->{'trans-unit'} as $element) {
-            foreach ($xml->xpath('//x:trans-unit') as $element)
+
+            foreach ($xml->xpath('//x:trans-unit') as $element) {
                 // handling post content here, which should just be saved on the post
                 if ($element['field_key'] . '' === 'post-content') {
                     $content = $element->source .'';
