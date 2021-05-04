@@ -59,6 +59,12 @@ class Metabox
             $postId = $_POST['post_ID'];
             $comment = $_POST['bts_comment'];
             $deadline = $_POST['bts_deadline'];
+            $time = $_POST['bts_deadline_time'];
+
+            // if we have a date and time, we add these together so we can create a proper datetime object in BTS.
+            if (! empty($deadline) && ! empty($time)) {
+            	$deadline .= ' ' . $time;
+			}
 
             $curl = curl_init();
             $url = get_rest_url() . 'bonnier-willow-bts/v1/translation/create';
@@ -147,6 +153,7 @@ class Metabox
                     <div>
                         <label for="bts_date">Vælg deadline</label>
                         <input type="date" name="bts_deadline" id="js-bts_deadline" />
+                        <input type="time" name="bts_deadline_time" id="js-bts_deadline_time" />
                     </div>
                 </div>
             </div>
