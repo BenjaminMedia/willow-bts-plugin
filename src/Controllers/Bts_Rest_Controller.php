@@ -179,8 +179,6 @@ class Bts_Rest_Controller extends WP_REST_Controller
                         'content' => $element->source .'',
                         // these attributes are mostly for debugging if something happens
                         'field_key' => $element['field_key'] .'',
-                        'group_id' => $element['group_id'] .'',
-                        'group_key' => $element['group_key'] .'',
                     ];
                 }
             }
@@ -497,6 +495,12 @@ class Bts_Rest_Controller extends WP_REST_Controller
      */
     private function addXliffTransUnit($xmlElement, $field, $isAcf = true)
     {
+        // skip the field, if we cannot send the content because it's not a string
+        // NOTE: array content has been found on images.
+        if (! is_string($field['content'])) {
+            return;
+        }
+
         $element = $xmlElement->addChild('trans-unit');
 
         $element->addAttribute('field_id', $field['ID'] ?? '');
@@ -505,7 +509,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
         $element->addAttribute('_type', $field['_type'] ?? '');
         $element->addAttribute('acf', (int)$isAcf);
 
-        $element->addChild('source', is_string($field['content']) ? $field['content']: '');
+        $element->addChild('source', $field['content']);
     }
 
     /**
