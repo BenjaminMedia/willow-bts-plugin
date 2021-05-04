@@ -207,7 +207,13 @@ class Bts_Rest_Controller extends WP_REST_Controller
 
             // running through the list of found ACF fields, and updates the values on the current translated post
             foreach ($acfFields as $acfField) {
-                $field = acf_get_field($acfField['field_id']);
+                // fetching the acf field id
+                $fieldId = $acfField['field_id'];
+                // if the field id is empty, try to use the field key instead
+                if (empty($fieldId)) {
+                    $fieldId = $acfField['field_key'];
+                }
+                $field = acf_get_field($fieldId);
                 // updating the act field data on the post
                 acf_update_value($acfField['content'], $translatedPostId, $field);
             }
