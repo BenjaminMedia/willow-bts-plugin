@@ -175,10 +175,13 @@ class Bts_Rest_Controller extends WP_REST_Controller
                 } else {
                     // handling ACF fields
                     $acfFields[] = [
-                        'field_id' => $element['field_id'] .'',
                         'content' => $element->source .'',
                         // these attributes are mostly for debugging if something happens
                         'field_key' => $element['field_key'] .'',
+                        'is_subfield' => $element['is_subfield'] .'',
+                        'parent_key' => $element['parent_key'] .'',
+                        'parent_selector' => $element['parent_selector'] .'',
+                        'subfield_position' => $element['subfield_position'] . '',
                     ];
                 }
             }
@@ -207,15 +210,23 @@ class Bts_Rest_Controller extends WP_REST_Controller
 
             // running through the list of found ACF fields, and updates the values on the current translated post
             foreach ($acfFields as $acfField) {
-                // fetching the acf field id
-                $fieldId = $acfField['field_id'];
-                // if the field id is empty, try to use the field key instead
-                if (empty($fieldId)) {
-                    $fieldId = $acfField['field_key'];
+                // handles subfields, which are basically the widgets they can add.
+                if (! empty($acfField['is_subfield'])) {
+                    // updates the sub field with new data
+                    update_sub_field(
+                        [
+                            $acfField['parent_selector'],
+                            $acfField['subfield_position'],
+                            $acfField['field_key']
+                        ],
+                        $acfField['content']
+                    );
+                } else {
+                    // if the field id is empty, try to use the field key instead
+                    $field = acf_get_field($acfField['field_key']);
+                    // updating the act field data on the post
+                    acf_update_value($acfField['content'], $translatedPostId, $field);
                 }
-                $field = acf_get_field($fieldId);
-                // updating the act field data on the post
-                acf_update_value($acfField['content'], $translatedPostId, $field);
             }
 
 
@@ -446,7 +457,6 @@ class Bts_Rest_Controller extends WP_REST_Controller
             [
                 'key' => 'post-content',
                 'content' => $post->post_content,
-                '_type' => 'post-content'
             ],
             false
         );
@@ -472,20 +482,49 @@ class Bts_Rest_Controller extends WP_REST_Controller
     {
         // the data array to return to the caller
         $data = [];
+        // fetching the fields on the given post
+        $fields = get_fields($post->ID);
 
-        // using act_get_field_groups
-        $groups = acf_get_field_groups();
-        foreach ($groups as $group) {
-            $fields = acf_get_fields($group);
+        // running through all fields found
+        foreach ($fields as $fieldName => $fieldValue) {
+            $field = acf_get_field($fieldName);
 
-            foreach ($fields as $field) {
+            // if the field has any sub fields, handle those
+            if (have_rows($field['key'])) {
+                $rowIndex = 0;
+
+                while (have_rows($field['key'], $post->ID)) {
+                    the_row();
+                    // fetching the row data (a row is a widget)
+                    $row = get_row();
+                    $rowIndex++;
+
+                    foreach ($row as $rowkey => $rowValue) {
+                        // removing layout items
+                        if (! acf_is_field_key($rowkey)) {
+                            continue;
+                        }
+
+                        $data[] = [
+                            'key' => $rowkey,
+                            'name' => $rowkey,
+                            'content' => $rowValue,
+                            'acf' => 1,
+                            'is_subfield' => 1,
+                            'subfield_position' => $rowIndex,
+                            'parent_key' => $field['key'],
+                            'parent_selector' => $fieldName,
+                        ];
+                    }
+                }
+            } else {
+                // only directly add fields, that do not have subrows
                 $data[] = [
-                    'ID' => $field['ID'],
                     'key' => $field['key'],
                     'name' => $field['name'],
                     'content' => acf_get_value($post->ID, $field),
-                    '_type' => 'acf_get_field_groups',
                     'acf' => 1,
+                    'is_subfield' => 0,
                 ];
             }
         }
@@ -509,10 +548,12 @@ class Bts_Rest_Controller extends WP_REST_Controller
 
         $element = $xmlElement->addChild('trans-unit');
 
-        $element->addAttribute('field_id', $field['ID'] ?? '');
         $element->addAttribute('field_key', $field['key'] ?? '');
         $element->addAttribute('field_name', $field['name'] ?? '');
-        $element->addAttribute('_type', $field['_type'] ?? '');
+        $element->addAttribute('parent_key', $field['parent_key'] ?? '');
+        $element->addAttribute('parent_selector', $field['parent_selector'] ?? '');
+        $element->addAttribute('is_subfield', $field['is_subfield'] ?? '0');
+        $element->addAttribute('subfield_position', $field['subfield_position'] ?? '0');
         $element->addAttribute('acf', (int)$isAcf);
 
         $element->addChild('source', $field['content']);
