@@ -178,10 +178,10 @@ class Bts_Rest_Controller extends WP_REST_Controller
                         'content' => $element->source .'',
                         // these attributes are mostly for debugging if something happens
                         'field_key' => $element['field_key'] .'',
-                        'is_subfield' => $element['is_subfield'] .'',
-                        'parent_key' => $element['parent_key'] .'',
-                        'parent_selector' => $element['parent_selector'] .'',
-                        'subfield_position' => $element['subfield_position'] . '',
+                        'is_subfield' => $element['is_subfield'] ? $element['is_subfield'] .'' : '0',
+                        'parent_key' => $element['parent_key'] ? $element['parent_key'] .'' : '',
+                        'parent_selector' => $element['parent_selector'] ? $element['parent_selector'] .'' : '',
+                        'subfield_position' => $element['subfield_position'] ? $element['subfield_position'] . '' : '',
                     ];
                 }
             }
