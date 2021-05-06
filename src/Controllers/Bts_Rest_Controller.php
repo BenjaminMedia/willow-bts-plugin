@@ -490,7 +490,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
             $field = acf_get_field($fieldName);
 
             // if the field has any sub fields, handle those
-            if (have_rows($field['key'])) {
+            if (have_rows($field['key'], $post->ID)) {
                 $rowIndex = 0;
 
                 while (have_rows($field['key'], $post->ID)) {
