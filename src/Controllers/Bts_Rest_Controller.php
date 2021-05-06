@@ -219,7 +219,8 @@ class Bts_Rest_Controller extends WP_REST_Controller
                             $acfField['subfield_position'],
                             $acfField['field_key']
                         ],
-                        $acfField['content']
+                        $acfField['content'],
+                        $translatedPostId
                     );
                 } else {
                     // if the field id is empty, try to use the field key instead
@@ -484,6 +485,11 @@ class Bts_Rest_Controller extends WP_REST_Controller
         $data = [];
         // fetching the fields on the given post
         $fields = get_fields($post->ID);
+
+        // handles a nasty nullpointer, resulting in an error in the widget in admin.
+        if (empty($fields)) {
+            return [];
+        }
 
         // running through all fields found
         foreach ($fields as $fieldName => $fieldValue) {
