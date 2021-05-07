@@ -98,6 +98,16 @@ class Bts_Rest_Controller extends WP_REST_Controller
                 ]);
 
                 pll_set_post_language($translatedPostId, $locale);
+                // sets the post type of the translation, to be the same as the current post
+                set_post_type($translatedPostId, $post->post_type);
+
+                $translatedPost = get_post($translatedPostId);
+                $poly = PLL();
+                $pd = new \PLL_Duplicate($poly);
+                $pd->copy_content($post, $translatedPost, $locale);
+
+                // TODO: handle copy ACF fields from original post
+                $this->copyAcfContent($post, $translatedPost);
             }
 
             // sets the post type of the translation, to be the same as the current post
@@ -500,9 +510,8 @@ class Bts_Rest_Controller extends WP_REST_Controller
                 $rowIndex = 0;
 
                 while (have_rows($field['key'], $post->ID)) {
-                    the_row();
                     // fetching the row data (a row is a widget)
-                    $row = get_row();
+                    $row = the_row();
                     $rowIndex++;
 
                     foreach ($row as $rowkey => $rowValue) {
@@ -536,6 +545,50 @@ class Bts_Rest_Controller extends WP_REST_Controller
         }
 
         return $data;
+    }
+
+    /**
+     * Copies ACF fields and their content, from one post to the other
+     * @param WP_Post $fromPost the post to copy content from.
+     * @param WP_Post $toPost the post to copy content to.
+     */
+    private function copyAcfContent($fromPost, $toPost)
+    {
+        $fields = get_fields($fromPost->ID);
+
+        foreach ($fields as $fieldName => $fieldValue) {
+            // fetches the ACF field, which is used on "all" posts
+            $field = acf_get_field($fieldName);
+
+            if (have_rows($field['key'], $fromPost->ID)) {
+                $rowIndex = 0;
+
+                while (have_rows($field['key'], $fromPost->ID)) {
+                    // fetching the row data (a row is a widget)
+                    $row = the_row();
+                    $rowIndex++;
+
+                    foreach ($row as $rowkey => $rowValue) {
+                        // removing layout items
+                        if (!acf_is_field_key($rowkey)) {
+                            continue;
+                        }
+
+                        update_sub_field(
+                            [
+                                $fieldName,
+                                $rowIndex,
+                                $rowkey
+                            ],
+                            $rowValue,
+                            $toPost->ID
+                        );
+                    }
+                }
+            } else {
+                update_field($fieldName, $fieldValue, $toPost->ID);
+            }
+        }
     }
 
     /**
