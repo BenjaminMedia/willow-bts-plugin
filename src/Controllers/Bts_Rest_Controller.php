@@ -89,29 +89,11 @@ class Bts_Rest_Controller extends WP_REST_Controller
             $translatedPostId = $translations[$locale] ?? null;
 
             if (! $translatedPostId) {
-                // creates or updates the post
-                $translatedPostId = wp_insert_post([
-                    'ID' => $translatedPostId,
-                    'post_content' => $post->post_content,
-                    'post_title' => $post->post_title,
-                    'post_type' => $post->post_type,
-                ]);
-
-                pll_set_post_language($translatedPostId, $locale);
-                // sets the post type of the translation, to be the same as the current post
-                set_post_type($translatedPostId, $post->post_type);
-
-                $translatedPost = get_post($translatedPostId);
-                $poly = PLL();
-                $pd = new \PLL_Duplicate($poly);
-                $pd->copy_content($post, $translatedPost, $locale);
-
-                // TODO: handle copy ACF fields from original post
-                $this->copyAcfContent($post, $translatedPost);
+                // making a copy of the original post, to a new one, and setting the new locale on it
+                $translatedPost = $this->copyPost($post, $locale);
+                // saving thew newly created post, for the new language
+                $translatedPostId = $translatedPost->ID;
             }
-
-            // sets the post type of the translation, to be the same as the current post
-            set_post_type($translatedPostId, $post->post_type);
 
             // setting the locale and post id associated.
             // if the locale already exists, then we just update the post id.
@@ -124,6 +106,41 @@ class Bts_Rest_Controller extends WP_REST_Controller
         pll_save_post_translations($translations);
 
         return new WP_REST_Response('Post sent to translation');
+    }
+
+    /**
+     * Copies the given post, to a new post, with the given locale.
+     * @param WP_POST $fromPost the post to copy the contents from
+     * @param string $locale the locale string to copy the post to
+     * @return array|WP_Post|null
+     */
+    public function copyPost($fromPost, $locale)
+    {
+        // creates or updates the post
+        $postId = wp_insert_post([
+            'post_content' => $fromPost->post_content,
+            'post_title' => $fromPost->post_title,
+            'post_type' => $fromPost->post_type,
+        ]);
+
+        pll_set_post_language($postId, $locale);
+
+        set_post_type($postId, $fromPost->post_type);
+
+        // setting default content on the new post translation, using polylang
+        $post = get_post($postId);
+        $poly = PLL();
+        $pd = new \PLL_Duplicate($poly);
+        $pd->copy_content($fromPost, $post, $locale);
+
+        // updating the post
+        wp_update_post($post);
+
+        //  copying the ACF content from the original post, to the newly created post.
+        $this->copyAcfContent($fromPost->ID, $postId);
+
+        // returning the newly created post, refreshed from the database
+        return get_post($post->ID);
     }
 
     /**
@@ -188,10 +205,10 @@ class Bts_Rest_Controller extends WP_REST_Controller
                         'content' => $element->source .'',
                         // these attributes are mostly for debugging if something happens
                         'field_key' => $element['field_key'] .'',
-                        'is_subfield' => $element['is_subfield'] ? $element['is_subfield'] .'' : '0',
-                        'parent_key' => $element['parent_key'] ? $element['parent_key'] .'' : '',
-                        'parent_selector' => $element['parent_selector'] ? $element['parent_selector'] .'' : '',
-                        'subfield_position' => $element['subfield_position'] ? $element['subfield_position'] . '' : '',
+                        'is_subfield' => $element['is_subfield'] .'',
+                        'parent_key' => $element['parent_key'] .'',
+                        'parent_selector' => $element['parent_selector'] .'',
+                        'subfield_position' => $element['subfield_position'] . '',
                     ];
                 }
             }
@@ -202,7 +219,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
             $translatedPostId = pll_get_post($post->ID, $language);
 
             // creates or updates the post
-            $translatedPostId = wp_insert_post([
+            $translatedPostId = wp_update_post([
                 'ID' => $translatedPostId,
                 'post_content' => $content,
                 'post_title' => $translation->title,
@@ -496,7 +513,6 @@ class Bts_Rest_Controller extends WP_REST_Controller
         // fetching the fields on the given post
         $fields = get_fields($post->ID);
 
-        // handles a nasty nullpointer, resulting in an error in the widget in admin.
         if (empty($fields)) {
             return [];
         }
@@ -529,6 +545,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
                             'subfield_position' => $rowIndex,
                             'parent_key' => $field['key'],
                             'parent_selector' => $fieldName,
+                            'parent' => $field['parent'],
                         ];
                     }
                 }
@@ -540,6 +557,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
                     'content' => acf_get_value($post->ID, $field),
                     'acf' => 1,
                     'is_subfield' => 0,
+                    'parent' => $field['parent'],
                 ];
             }
         }
@@ -549,45 +567,18 @@ class Bts_Rest_Controller extends WP_REST_Controller
 
     /**
      * Copies ACF fields and their content, from one post to the other
-     * @param WP_Post $fromPost the post to copy content from.
-     * @param WP_Post $toPost the post to copy content to.
+     * @param int $fromPostId the post to copy content from.
+     * @param int $toPostId the post to copy content to.
      */
-    private function copyAcfContent($fromPost, $toPost)
+    public function copyAcfContent($fromPostId, $toPostId)
     {
-        $fields = get_fields($fromPost->ID);
-
+        $fields = get_fields($fromPostId);
+        // runs through the fields, copying them from the original post, to the new copy
         foreach ($fields as $fieldName => $fieldValue) {
-            // fetches the ACF field, which is used on "all" posts
-            $field = acf_get_field($fieldName);
-
-            if (have_rows($field['key'], $fromPost->ID)) {
-                $rowIndex = 0;
-
-                while (have_rows($field['key'], $fromPost->ID)) {
-                    // fetching the row data (a row is a widget)
-                    $row = the_row();
-                    $rowIndex++;
-
-                    foreach ($row as $rowkey => $rowValue) {
-                        // removing layout items
-                        if (!acf_is_field_key($rowkey)) {
-                            continue;
-                        }
-
-                        update_sub_field(
-                            [
-                                $fieldName,
-                                $rowIndex,
-                                $rowkey
-                            ],
-                            $rowValue,
-                            $toPost->ID
-                        );
-                    }
-                }
-            } else {
-                update_field($fieldName, $fieldValue, $toPost->ID);
-            }
+            // a flexible content field, is just a single field.
+            // the value of it, should just be copied 1to1, as this will create
+            // all the different "rows" in the blocks. Easy peasy... :)
+            update_field($fieldName, $fieldValue, $toPostId);
         }
     }
 
