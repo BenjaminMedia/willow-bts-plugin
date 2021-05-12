@@ -20,6 +20,10 @@ class Bts_Rest_Controller extends WP_REST_Controller
 {
     public const SITE_PREFIX = 'WILLOW_';
 
+    public const STATE_READY_FOR_TRANSLATION = 1;
+    public const STATE_SENT_TO_TRANSLATION = 2;
+    public const STATE_TRANSLATED = 3;
+
     /**
      * Registers the routes of the controller
      */
@@ -100,7 +104,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
             // if it's a new post, then it's added.
             $translations[$locale] = $translatedPostId;
 
-            $this->setMetaState($translatedPostId, 'Sent to BTS');
+            $this->setMetaState($translatedPostId, self::STATE_SENT_TO_TRANSLATION);
         }
 
         pll_save_post_translations($translations);
@@ -267,7 +271,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
             $translations[$language] = $translatedPostId;
 
             // setting the current state of the translation
-            $this->setMetaState($translatedPostId, 'Translated');
+            $this->setMetaState($translatedPostId, self::STATE_TRANSLATED);
         }
 
         // updating the original/main post, with all the available languages
@@ -696,12 +700,37 @@ class Bts_Rest_Controller extends WP_REST_Controller
     /**
      * Sets a new meta state for the given post translation
      * @param string|int|WP_Post $translatedPostId the id of the translation "copy"
-     * @param string $state the new state message to set
+     * @param int $state the new state to set. See STATE_X consts
      */
     private function setMetaState($translatedPostId, $state)
     {
+        $stateText = '';
+        $stateToKey = '';
+        // finds the proper text to display in the BTS metabox
+        switch ($state) {
+            case (self::STATE_READY_FOR_TRANSLATION):
+                $stateText = 'Ready for translation';
+                $stateToKey = 'ready';
+                break;
+            case (self::STATE_SENT_TO_TRANSLATION):
+                $stateText = 'Sent to BTS';
+                $stateToKey = 'progress';
+                break;
+            case (self::STATE_TRANSLATED):
+                $stateText = 'Translated';
+                $stateToKey = 'translated';
+                break;
+        }
+
         delete_post_meta($translatedPostId, 'bts_translation_state');
-        add_post_meta($translatedPostId, 'bts_translation_state', $state);
+        add_post_meta($translatedPostId, 'bts_translation_state', $stateText);
+
+        // finding the translation_state acf field
+        $field = acf_maybe_get_field('translation_state', $translatedPostId);
+        if ($field) {
+            // updates the translated state acf field, so it can be seen as normal, other places in the system.
+            update_field($field['key'], $stateToKey, $translatedPostId);
+        }
     }
 
     /**
