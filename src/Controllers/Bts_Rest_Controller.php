@@ -193,7 +193,8 @@ class Bts_Rest_Controller extends WP_REST_Controller
             $xml = new \SimpleXMLElement($translation->content);
             $xml->registerXPathNamespace('x', 'urn:oasis:names:tc:xliff:document:1.2');
 
-            // post content goes here
+            // post title/content goes here
+            $title = '';
             $content = '';
             // list of acf fields goes here
             $acfFields = [];
@@ -201,7 +202,9 @@ class Bts_Rest_Controller extends WP_REST_Controller
 
             foreach ($xml->xpath('//x:trans-unit') as $element) {
                 // handling post content here, which should just be saved on the post
-                if ($element['field_key'] . '' === 'post-content') {
+                if ($element['field_key'] . '' === 'post-title') {
+                    $title = $element->source .'';
+                } elseif ($element['field_key'] . '' === 'post-content') {
                     $content = $element->source .'';
                 } else {
                     // handling ACF fields
@@ -226,7 +229,9 @@ class Bts_Rest_Controller extends WP_REST_Controller
             $translatedPostId = wp_update_post([
                 'ID' => $translatedPostId,
                 'post_content' => $content,
-                'post_title' => $translation->title,
+                // NOTE: the title is no longer gotten from the "translation" document, but instead a field sent in the document.
+                'post_title' => $title,
+//                'post_title' => $translation->title,
                 'post_type' => $post->post_type,
             ]);
 
@@ -483,6 +488,15 @@ class Bts_Rest_Controller extends WP_REST_Controller
         $fileElement->addAttribute('source-language', $postLanguage);
         $bodyElement = $fileElement->addChild('body');
 
+        // adding "normal" post title to the document
+        $this->addXliffTransUnit(
+            $bodyElement,
+            [
+                'key' => 'post-title',
+                'content' => $post->post_title,
+            ],
+            false
+        );
         // adding "normal" post content to the document
         $this->addXliffTransUnit(
             $bodyElement,
