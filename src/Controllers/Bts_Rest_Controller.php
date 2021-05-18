@@ -539,48 +539,80 @@ class Bts_Rest_Controller extends WP_REST_Controller
         foreach ($fields as $fieldName => $fieldValue) {
             $field = acf_get_field($fieldName);
 
-            // if the field has any sub fields, handle those
-            if (have_rows($field['key'], $post->ID)) {
-                $rowIndex = 0;
-
-                while (have_rows($field['key'], $post->ID)) {
-                    // fetching the row data (a row is a widget)
-                    $row = the_row();
-                    $rowIndex++;
-
-                    foreach ($row as $rowkey => $rowValue) {
-                        // removing layout items
-                        if (! acf_is_field_key($rowkey)) {
-                            continue;
-                        }
-
-                        $data[] = [
-                            'key' => $rowkey,
-                            'name' => $rowkey,
-                            'content' => $rowValue,
-                            'acf' => 1,
-                            'is_subfield' => 1,
-                            'subfield_position' => $rowIndex,
-                            'parent_key' => $field['key'],
-                            'parent_selector' => $fieldName,
-                            'parent' => $field['parent'],
-                        ];
-                    }
-                }
-            } else {
-                // only directly add fields, that do not have subrows
-                $data[] = [
-                    'key' => $field['key'],
-                    'name' => $field['name'],
-                    'content' => acf_get_value($post->ID, $field),
-                    'acf' => 1,
-                    'is_subfield' => 0,
-                    'parent' => $field['parent'],
-                ];
-            }
+            $this->addAcfField($post, $field, $fieldName, $data, 0);
         }
 
         return $data;
+    }
+
+    /**
+     * Adds the given $field to the list of ACF field, if it meets the requirements.
+     * @param WP_Post $post
+     * @param array $field
+     * @param string $fieldName
+     * @param array $data
+     * @param int $position
+     * @param string|null $parentKey
+     * @param string|null $parentSelector
+     * @param string|null $parent
+     */
+    private function addAcfField($post, $field, $fieldName, &$data, $position, $parentKey = null, $parentSelector = null, $parent = null)
+    {
+        if (empty($field)) {
+            return;
+        }
+
+        // we have a field, that has rows in it. Run through the rows, adding those fields
+        if (have_rows($field['key'], $post->ID)) {
+            $rowIndex = 0;
+
+            while (have_rows($field['key'], $post->ID)) {
+                // fetching the row data (a row is a widget)
+                $row = the_row();
+                $rowIndex++;
+
+                foreach ($row as $rowkey => $rowValue) {
+                    // removing layout items
+                    if (! acf_is_field_key($rowkey)) {
+                        continue;
+                    }
+
+                    $rowField = acf_maybe_get_field($rowkey);
+                    // adds the row "field", by calling the same method again
+                    $this->addAcfField($post, $rowField, $rowkey, $data, $rowIndex, $field['key'], $fieldName, $field['parent']);
+                }
+            }
+        } else {
+            // do not add "hard coded" types to the translations #BTS-57
+            if (in_array($field['type'], ['select', 'true_false', 'radio', 'checkbox'])) {
+                return;
+            }
+
+            // getting the field content to use
+            $content = acf_get_value($post->ID, $field);
+
+            // if the field is an image, get the url to the image instead
+            if ($field['type'] === 'image') {
+                $imageField = get_sub_field($field['key']);
+
+                if (! empty($imageField['sizes']['medium'])) {
+                    $content = $imageField['sizes']['medium'];
+                }
+            }
+
+            $data[] = [
+                'key' => $field['key'],
+                'name' => $field['name'],
+                'type' => $field['type'],
+                'content' => $content,
+                'acf' => 1,
+                'is_subfield' => ($parentKey !== null ? 1 : 0), // checking if the field is a subfield.
+                'subfield_position' => $position,
+                'parent_key' => $parentKey,
+                'parent_selector' => $parentSelector,
+                'parent' => $parent,
+            ];
+        }
     }
 
     /**
