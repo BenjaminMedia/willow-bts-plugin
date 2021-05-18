@@ -584,20 +584,46 @@ class Bts_Rest_Controller extends WP_REST_Controller
             }
         } else {
             // do not add "hard coded" types to the translations #BTS-57
-            if (in_array($field['type'], ['select', 'true_false', 'radio', 'checkbox'])) {
+            if (in_array($field['type'], ['select', 'true_false', 'radio', 'checkbox', 'user'])) {
                 return;
             }
 
-            // getting the field content to use
-            $content = acf_get_value($post->ID, $field);
+            // checking if the field is a subfield.
+            $isSubField = ($parentKey !== null ? 1 : 0);
+
+            if ($isSubField) {
+                $content = get_sub_field($field['key']);
+            } else {
+                // getting the field content to use
+                $content = acf_get_value($post->ID, $field);
+            }
 
             // if the field is an image, get the url to the image instead
             if ($field['type'] === 'image') {
-                $imageField = get_sub_field($field['key']);
-
-                if (! empty($imageField['sizes']['medium'])) {
-                    $content = $imageField['sizes']['medium'];
+                // skipping if the image content is "false"
+                if ($content === false) {
+                    $content = '';
+                } elseif (! empty($content['sizes']['medium'])) {
+                    $content = $content['sizes']['medium'];
                 }
+            }
+            // if the field is a file, get the url to the file instead
+            if ($field['type'] === 'file') {
+                // skipping if the image content is "false"
+                if ($content === false) {
+                    $content = '';
+                } elseif (! empty($content['url'])) {
+                    $content = $content['url'];
+                }
+            }
+
+            // skipping a list of fields, that should not be included
+            if (in_array($field['name'], [
+                'translation_deadline',
+                'canonical_url',
+                'internal_comment',
+            ])) {
+                return;
             }
 
             $data[] = [
@@ -606,7 +632,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
                 'type' => $field['type'],
                 'content' => $content,
                 'acf' => 1,
-                'is_subfield' => ($parentKey !== null ? 1 : 0), // checking if the field is a subfield.
+                'is_subfield' => $isSubField,
                 'subfield_position' => $position,
                 'parent_key' => $parentKey,
                 'parent_selector' => $parentSelector,
