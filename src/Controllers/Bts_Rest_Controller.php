@@ -23,6 +23,8 @@ class Bts_Rest_Controller extends WP_REST_Controller
     public const STATE_READY_FOR_TRANSLATION = 1;
     public const STATE_SENT_TO_TRANSLATION = 2;
     public const STATE_TRANSLATED = 3;
+    const LINE_BREAKS = ["\r", "\n", "\r\n"];
+    const LW_LINE_BREAKS = ["&#13;", "&#10;", "&#13;&#10;"];
 
     /**
      * Registers the routes of the controller
@@ -203,13 +205,13 @@ class Bts_Rest_Controller extends WP_REST_Controller
             foreach ($xml->xpath('//x:trans-unit') as $element) {
                 // handling post content here, which should just be saved on the post
                 if ($element['field_key'] . '' === 'post-title') {
-                    $title = $element->source .'';
+                    $title = $this->convertToLineBreaks($element->source .'');
                 } elseif ($element['field_key'] . '' === 'post-content') {
-                    $content = $element->source .'';
+                    $content = $this->convertToLineBreaks($element->source .'');
                 } else {
                     // handling ACF fields
                     $acfFields[] = [
-                        'content' => $element->source .'',
+                        'content' => $this->convertToLineBreaks($element->source .''),
                         // these attributes are mostly for debugging if something happens
                         'field_key' => $element['field_key'] .'',
                         'is_subfield' => $element['is_subfield'] .'',
@@ -603,8 +605,11 @@ class Bts_Rest_Controller extends WP_REST_Controller
                 // skipping if the image content is "false"
                 if ($content === false) {
                     $content = '';
-                } elseif (! empty($content['sizes']['medium'])) {
+                } elseif (! empty($content['sizes']['medium']) && ! is_int($content['sizes']['medium'])) {
+                    // handling int's returned from the sizes as well
                     $content = $content['sizes']['medium'];
+                } elseif (! empty($content['url'])) {
+                    $content = $content['url'];
                 }
             }
             // if the field is a file, get the url to the file instead
@@ -616,6 +621,8 @@ class Bts_Rest_Controller extends WP_REST_Controller
                     $content = $content['url'];
                 }
             }
+            // handling line breaks in LW format - BTS-65
+            $content = $this->convertToLWLineBreaks($content);
 
             // skipping a list of fields, that should not be included
             if (in_array($field['name'], [
@@ -839,5 +846,25 @@ class Bts_Rest_Controller extends WP_REST_Controller
         $options = get_option('bts_plugin_options');
         // returns the work area
         return $options['lw_terminology'];
+    }
+
+    /**
+     * Converts the given content's linebreaks from LW standard into \r etc
+     * @param string $content the content to convert from LW linebreaks into \r etc
+     * @return string the converted content
+     */
+    private function convertToLineBreaks($content)
+    {
+        return str_replace(self::LW_LINE_BREAKS, self::LINE_BREAKS, $content);
+    }
+
+    /**
+     * Converts the given content from normal linebreaks (\r \r\n) into a LW readable format.
+     * @param string $content the content to convert to LW linebreaks.
+     * @return string the converted content
+     */
+    private function convertToLWLineBreaks($content)
+    {
+        return str_replace(self::LINE_BREAKS, self::LW_LINE_BREAKS, $content);
     }
 }
