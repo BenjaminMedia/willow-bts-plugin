@@ -589,6 +589,10 @@ class Bts_Rest_Controller extends WP_REST_Controller
             if (in_array($field['type'], ['select', 'true_false', 'radio', 'checkbox', 'user', 'embed_url', 'code'])) {
                 return;
             }
+            // also skipping (text) fields with the following names, as they can contain "bad" content, such as iframe code.
+            if (in_array($field['name'], ['embed_url', 'code'])) {
+                return;
+            }
 
             // checking if the field is a subfield.
             $isSubField = ($parentKey !== null ? 1 : 0);
