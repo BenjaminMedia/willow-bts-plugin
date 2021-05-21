@@ -208,6 +208,9 @@ class Bts_Rest_Controller extends WP_REST_Controller
                     $title = $this->convertToLineBreaks($element->source .'');
                 } elseif ($element['field_key'] . '' === 'post-content') {
                     $content = $this->convertToLineBreaks($element->source .'');
+                } elseif (in_array($element['field_type'], ['image', 'url'])) {
+                    // skipping a few fields, since urls and images should not be changed
+                    continue;
                 } else {
                     // handling ACF fields
                     $acfFields[] = [
@@ -215,9 +218,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
                         // these attributes are mostly for debugging if something happens
                         'field_key' => $element['field_key'] .'',
                         'is_subfield' => $element['is_subfield'] .'',
-                        'parent_key' => $element['parent_key'] .'',
-                        'parent_selector' => $element['parent_selector'] .'',
-                        'subfield_position' => $element['subfield_position'] . '',
+                        'field_path' => $element['path'] . '',
                     ];
                 }
             }
@@ -252,22 +253,17 @@ class Bts_Rest_Controller extends WP_REST_Controller
                 if (! empty($acfField['is_subfield'])) {
                     // updates the sub field with new data
                     update_sub_field(
-                        [
-                            $acfField['parent_selector'],
-                            $acfField['subfield_position'],
-                            $acfField['field_key']
-                        ],
+                        explode(',', $acfField['field_path']),
                         $acfField['content'],
                         $translatedPostId
                     );
                 } else {
                     // if the field id is empty, try to use the field key instead
-                    $field = acf_get_field($acfField['field_key']);
+                    $field = acf_get_field($acfField['field_path']);
                     // updating the act field data on the post
                     acf_update_value($acfField['content'], $translatedPostId, $field);
                 }
             }
-
 
             // NOTE: how should we handle post status? by setting it to draft? new translation should NOT be auto published.
 
@@ -541,7 +537,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
         foreach ($fields as $fieldName => $fieldValue) {
             $field = acf_get_field($fieldName);
 
-            $this->addAcfField($post, $field, $fieldName, $data, 0);
+            $this->addAcfField($post, $field, $fieldName, $data, 0, $field['key']);
         }
 
         return $data;
@@ -554,11 +550,9 @@ class Bts_Rest_Controller extends WP_REST_Controller
      * @param string $fieldName
      * @param array $data
      * @param int $position
-     * @param string|null $parentKey
-     * @param string|null $parentSelector
-     * @param string|null $parent
+     * @param string|null $path
      */
-    private function addAcfField($post, $field, $fieldName, &$data, $position, $parentKey = null, $parentSelector = null, $parent = null)
+    private function addAcfField($post, $field, $fieldName, &$data, $position, $path = null)
     {
         if (empty($field)) {
             return;
@@ -580,8 +574,14 @@ class Bts_Rest_Controller extends WP_REST_Controller
                     }
 
                     $rowField = acf_maybe_get_field($rowkey);
+
+                    $fieldPath = $rowkey;
+                    if ($path) {
+                        $fieldPath = $path.','.$rowIndex.','.$fieldPath;
+                    }
+
                     // adds the row "field", by calling the same method again
-                    $this->addAcfField($post, $rowField, $rowkey, $data, $rowIndex, $field['key'], $fieldName, $field['parent']);
+                    $this->addAcfField($post, $rowField, $rowkey, $data, $rowIndex, $fieldPath);
                 }
             }
         } else {
@@ -595,7 +595,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
             }
 
             // checking if the field is a subfield.
-            $isSubField = ($parentKey !== null ? 1 : 0);
+            $isSubField = (count(explode(',', $path)) > 1 ? 1 : 0);
 
             if ($isSubField) {
                 $content = get_sub_field($field['key']);
@@ -645,9 +645,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
                 'acf' => 1,
                 'is_subfield' => $isSubField,
                 'subfield_position' => $position,
-                'parent_key' => $parentKey,
-                'parent_selector' => $parentSelector,
-                'parent' => $parent,
+                'path' => $path ?? $field['key'],
             ];
         }
     }
@@ -687,10 +685,9 @@ class Bts_Rest_Controller extends WP_REST_Controller
 
         $element->addAttribute('field_key', $field['key'] ?? '');
         $element->addAttribute('field_name', $field['name'] ?? '');
-        $element->addAttribute('parent_key', $field['parent_key'] ?? '');
-        $element->addAttribute('parent_selector', $field['parent_selector'] ?? '');
+        $element->addAttribute('field_type', $field['type'] ?? '');
+        $element->addAttribute('path', $field['path'] ?? '');
         $element->addAttribute('is_subfield', $field['is_subfield'] ?? '0');
-        $element->addAttribute('subfield_position', $field['subfield_position'] ?? '0');
         $element->addAttribute('acf', (int)$isAcf);
 
         $element->addChild('source', $field['content']);
