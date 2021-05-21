@@ -586,7 +586,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
             }
         } else {
             // do not add "hard coded" types to the translations #BTS-57
-            if (in_array($field['type'], ['select', 'true_false', 'radio', 'checkbox', 'user', 'embed_url'])) {
+            if (in_array($field['type'], ['select', 'true_false', 'radio', 'checkbox', 'user', 'embed_url', 'code'])) {
                 return;
             }
 
