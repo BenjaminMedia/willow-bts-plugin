@@ -296,6 +296,13 @@ class Bts_Rest_Controller extends WP_REST_Controller
         }
 
         try {
+            // handling the request as XML, if xml parameter is added to the request
+            if ($request->get_param('xml') !== null) {
+                return new WP_REST_Response(
+                    $this->toXliff(get_post($request->get_param('id')))
+                );
+            }
+
             return new WP_REST_Response(
                 array_merge(
                     $this->getArticleRaw(
@@ -514,7 +521,8 @@ class Bts_Rest_Controller extends WP_REST_Controller
             );
         }
 
-        return $xliff->asXML();
+        // man-handling the linebreaks, since simplexml converts them from &#10; and back to \n again...
+        return $this->convertToLWLineBreaks($xliff->asXML());
     }
 
     /**
@@ -866,6 +874,9 @@ class Bts_Rest_Controller extends WP_REST_Controller
      */
     private function convertToLWLineBreaks($content)
     {
+        // \r is converted to &#xD; in SimpleXML, so we'll just remove it here to avoid issues
+        $content = str_replace("\r", "", $content);
+        // doing normal line break replacements
         return str_replace(self::LINE_BREAKS, self::LW_LINE_BREAKS, $content);
     }
 }
