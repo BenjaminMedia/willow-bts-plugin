@@ -24,7 +24,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
     public const STATE_SENT_TO_TRANSLATION = 2;
     public const STATE_TRANSLATED = 3;
     const LINE_BREAKS = ["\r", "\n", "\r\n"];
-    const LW_LINE_BREAKS = ["&#13;", "&#10;", "&#13;&#10;"];
+    const LW_LINE_BREAKS = ["&amp;#13;", "&amp;#10;", "&amp;#13;&amp;#10;"];
 
     /**
      * Registers the routes of the controller
@@ -487,15 +487,15 @@ class Bts_Rest_Controller extends WP_REST_Controller
         // fetches the given post's language
         $postLanguage = pll_get_post_language($post->ID);
 
-        // skipping SimpleXML for now, using hand-coded xml instead.
-        $document = '<?xml version="1.0"?>';
-        $document .= '<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">';
-        $document .= '<file datatype="x-HTML/html-utf8-b_i" source-language="'.$postLanguage.'">';
-        $document .= '<body>';
+        $xliff = new \SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2"></xliff>');
+        $fileElement = $xliff->addChild('file');
+        $fileElement->addAttribute('datatype', 'x-HTML/html-utf8-b_i');
+        $fileElement->addAttribute('source-language', $postLanguage);
+        $bodyElement = $fileElement->addChild('body');
 
         // adding "normal" post title to the document
-        $this->addXmlElement(
-            $document,
+        $this->addXliffTransUnit(
+            $bodyElement,
             [
                 'key' => 'post-title',
                 'content' => $post->post_title,
@@ -503,8 +503,8 @@ class Bts_Rest_Controller extends WP_REST_Controller
             false
         );
         // adding "normal" post content to the document
-        $this->addXmlElement(
-            $document,
+        $this->addXliffTransUnit(
+            $bodyElement,
             [
                 'key' => 'post-content',
                 'content' => $post->post_content,
@@ -515,53 +515,13 @@ class Bts_Rest_Controller extends WP_REST_Controller
         // fetching the collection of ACF fields we have on the current post
         $fields = $this->getAcfContent($post);
         foreach ($fields as $field) {
-            $this->addXmlElement(
-                $document,
+            $this->addXliffTransUnit(
+                $bodyElement,
                 $field
             );
         }
 
-        $document .= '</body>';
-        $document .= '</file>';
-        $document .= '</xliff>';
-
-        return $document;
-
-//        $xliff = new \SimpleXMLElement('<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2"></xliff>');
-//        $fileElement = $xliff->addChild('file');
-//        $fileElement->addAttribute('datatype', 'x-HTML/html-utf8-b_i');
-//        $fileElement->addAttribute('source-language', $postLanguage);
-//        $bodyElement = $fileElement->addChild('body');
-//
-//        // adding "normal" post title to the document
-//        $this->addXliffTransUnit(
-//            $bodyElement,
-//            [
-//                'key' => 'post-title',
-//                'content' => $post->post_title,
-//            ],
-//            false
-//        );
-//        // adding "normal" post content to the document
-//        $this->addXliffTransUnit(
-//            $bodyElement,
-//            [
-//                'key' => 'post-content',
-//                'content' => $post->post_content,
-//            ],
-//            false
-//        );
-//
-//        // fetching the collection of ACF fields we have on the current post
-//        $fields = $this->getAcfContent($post);
-//        foreach ($fields as $field) {
-//            $this->addXliffTransUnit(
-//                $bodyElement,
-//                $field
-//            );
-//        }
-//
-//        return $xliff->asXML();
+        return $xliff->asXML();
     }
 
     /**
@@ -672,8 +632,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
                     $content = $content['url'];
                 }
             }
-            // handling line breaks in LW format - BTS-65
-//            $content = $this->convertToLWLineBreaks($content);
+
             // skipping a list of fields, that should not be included
             if (in_array($field['name'], [
                 'translation_deadline',
@@ -736,48 +695,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
         $element->addAttribute('is_subfield', $field['is_subfield'] ?? '0');
         $element->addAttribute('acf', (int)$isAcf);
 
-        $element->addChild('source', $field['content']);
-    }
-
-    /**
-     * Adds the given field to the document, as a "trans-unit" element
-     * @param string $document the document to add the field to
-     * @param array $field the field to add
-     * @param bool $isAcf
-     */
-    private function addXmlElement(&$document, $field, $isAcf = true)
-    {
-        // skip the field, if we cannot send the content because it's not a string
-        // NOTE: array content has been found on images.
-        if (! is_string($field['content'])) {
-            return;
-        }
-
-        // constructing the attributes to add to the trans-unit element
-        $attributes = [
-            'field_key' => $field['key'] ?? '',
-            'field_name' => $field['name'] ?? '',
-            'field_type' => $field['type'] ?? '',
-            'path' => $field['path'] ?? '',
-            'is_subfield' => $field['is_subfield'] ?? '0',
-            'acf' => (int)$isAcf,
-        ];
-
-        // creating the trans-unit element
-        $element = '<trans-unit';
-
-        // adding our attributes
-        foreach ($attributes as $key => $value) {
-            $element .= " $key=\"$value\"";
-        }
-
-        $element .= '>';
-        // adding source data to the element, remembering to escape entities and handling LW linebreaks
-        $element .= '<source>' . $this->convertToLWLineBreaks(htmlentities($field['content'])) . '</source>';
-        $element .= '</trans-unit>';
-
-        // adding the element to the given document
-        $document .= $element;
+        $element->addChild('source', $this->convertToLWLineBreaks($field['content'] . ''));
     }
 
     /**
@@ -953,8 +871,6 @@ class Bts_Rest_Controller extends WP_REST_Controller
      */
     private function convertToLWLineBreaks($content)
     {
-        // \r is converted to &#xD; in SimpleXML, so we'll just remove it here to avoid issues
-        $content = str_replace("\r", "", $content);
         // doing normal line break replacements
         return str_replace(self::LINE_BREAKS, self::LW_LINE_BREAKS, $content);
     }
