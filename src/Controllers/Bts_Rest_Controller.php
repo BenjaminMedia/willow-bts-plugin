@@ -130,11 +130,15 @@ class Bts_Rest_Controller extends WP_REST_Controller
             'post_type' => $fromPost->post_type,
             'post_date' => $fromPost->post_date,
             'post_status' => $fromPost->post_status,
+            'post_author' => $fromPost->post_author,
         ]);
 
         pll_set_post_language($postId, $locale);
 
         set_post_type($postId, $fromPost->post_type);
+
+        // updates the translated post's slug
+        $this->setPostSlug($postId);
 
         // setting default content on the new post translation, using polylang
         $post = get_post($postId);
@@ -238,14 +242,17 @@ class Bts_Rest_Controller extends WP_REST_Controller
                 'post_type' => $post->post_type,
             ]);
 
-            // sets the post type of the translation, to be the same as the current post
-            set_post_type($translatedPostId, $post->post_type);
-
             // if a post id is NOT returned after calling wp_insert_post, log the error and skip to next language
             if (0 === $translatedPostId || $translatedPostId instanceof WP_Error) {
                 error_log('Could not save translation for post ' . $post->ID . ':' . $language);
                 continue;
             }
+
+            // sets the post type of the translation, to be the same as the current post
+            set_post_type($translatedPostId, $post->post_type);
+
+            // updates the translated post's slug
+            $this->setPostSlug($translatedPostId);
 
             // running through the list of found ACF fields, and updates the values on the current translated post
             foreach ($acfFields as $acfField) {
@@ -369,8 +376,13 @@ class Bts_Rest_Controller extends WP_REST_Controller
             // fetching the translation for the given post, for the given language slug
             $translationId = pll_get_post($postId, $languageSlug);
 
+            // fetching the translated post, so we can display a few details from it.
+            $translatedPost = get_post($translationId);
+
             $languages[] = [
                 'id' => $translationId,
+                'post_title' => $translatedPost->post_title,
+                'post_slug' => $translatedPost->post_name,
                 'code' => $language->slug,
                 'name' => $language->name,
                 'state' => $translationId ? get_post_meta($translationId, 'bts_translation_state', true) : null,
@@ -877,5 +889,25 @@ class Bts_Rest_Controller extends WP_REST_Controller
     {
         // doing normal line break replacements
         return str_replace(self::LINE_BREAKS, self::LW_LINE_BREAKS, $content);
+    }
+
+    /**
+     * Sets a post slug on the post with the given id.
+     * The slug is generated from the given post id's title.
+     * NOTE: this updates the post in the database, using wp_update_post()
+     * @param $translatedPostId
+     */
+    private function setPostSlug($translatedPostId)
+    {
+        // fetching the translated post, with the given translatedPostId
+        $translatedPost = get_post($translatedPostId);
+
+        // creating the translated post slug (post_name) using the post title given
+        $slug = wp_unique_post_slug(str_slug($translatedPost->post_title), $translatedPostId, $translatedPost->post_status, $translatedPost->post_type, $translatedPost->post_parent);
+        // updating the translated post, with the new slug
+        wp_update_post([
+            'ID' => $translatedPostId,
+            'post_name' => $slug,
+        ]);
     }
 }
