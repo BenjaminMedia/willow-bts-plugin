@@ -25,6 +25,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
     public const STATE_TRANSLATED = 3;
     const LINE_BREAKS = ["\r", "\n", "\r\n"];
     const LW_LINE_BREAKS = ["&amp;#13;", "&amp;#10;", "&amp;#13;&amp;#10;"];
+    const LW_LINE_BREAKS_DECODED = ["&#13;", "&#10;", "&#13;&#10;"];
 
     /**
      * Registers the routes of the controller
@@ -127,6 +128,8 @@ class Bts_Rest_Controller extends WP_REST_Controller
             'post_content' => $fromPost->post_content,
             'post_title' => $fromPost->post_title,
             'post_type' => $fromPost->post_type,
+            'post_date' => $fromPost->post_date,
+            'post_status' => $fromPost->post_status,
         ]);
 
         pll_set_post_language($postId, $locale);
@@ -165,9 +168,6 @@ class Bts_Rest_Controller extends WP_REST_Controller
             // returning "a-ok" :)
             return new WP_REST_Response();
         }
-
-        // TODO: remove this error_log statement
-        error_log('Body json: ' . print_r($json,1));
 
         // decoding the actual message (again), since it's sent as json
         $messageData = \json_decode($json->Message);
@@ -298,9 +298,12 @@ class Bts_Rest_Controller extends WP_REST_Controller
         try {
             // handling the request as XML, if xml parameter is added to the request
             if ($request->get_param('xml') !== null) {
-                return new WP_REST_Response(
-                    $this->toXliff(get_post($request->get_param('id')))
-                );
+                $xml = $this->toXliff(get_post($request->get_param('id')));
+                $dom = new \DOMDocument();
+                $dom->loadXML($xml);
+                $dom->preserveWhiteSpace = false;
+                $dom->formatOutput = false;
+                return new WP_REST_Response($xml);
             }
 
             return new WP_REST_Response(
@@ -632,7 +635,8 @@ class Bts_Rest_Controller extends WP_REST_Controller
                     $content = $content['url'];
                 }
             }
-
+            // handling line breaks in LW format - BTS-65
+//            $content = $this->convertToLWLineBreaks($content);
             // skipping a list of fields, that should not be included
             if (in_array($field['name'], [
                 'translation_deadline',
@@ -861,7 +865,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
      */
     private function convertToLineBreaks($content)
     {
-        return str_replace(self::LW_LINE_BREAKS, self::LINE_BREAKS, $content);
+        return str_replace(self::LW_LINE_BREAKS_DECODED, self::LINE_BREAKS, $content);
     }
 
     /**
