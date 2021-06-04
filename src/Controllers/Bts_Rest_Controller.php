@@ -140,6 +140,9 @@ class Bts_Rest_Controller extends WP_REST_Controller
         // updates the translated post's slug
         $this->setPostSlug($postId);
 
+        // handles copying custom meta data from other metaboxes
+        $this->copyMetaBoxData($fromPost->ID, $postId);
+
         // setting default content on the new post translation, using polylang
         $post = get_post($postId);
         $poly = PLL();
@@ -823,8 +826,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
                 break;
         }
 
-        delete_post_meta($translatedPostId, 'bts_translation_state');
-        add_post_meta($translatedPostId, 'bts_translation_state', $stateText);
+        $this->setPostMetaData($translatedPostId, 'bts_translation_state', $stateText);
 
         // finding the translation_state acf field
         $field = acf_maybe_get_field('translation_state', $translatedPostId);
@@ -909,5 +911,32 @@ class Bts_Rest_Controller extends WP_REST_Controller
             'ID' => $translatedPostId,
             'post_name' => $slug,
         ]);
+    }
+
+    /**
+     * Copies various other meta data, from fromPost to postID
+     * @param int $fromPost the post id to copy the data from
+     * @param int $postId the post id to copy the data to
+     */
+    private function copyMetaBoxData($fromPostId, $postId)
+    {
+        $authorKey = 'post_author_override';
+        // fetching the author value
+        $author = get_post_meta($fromPostId, $authorKey);
+        // saves the post meta data
+        $this->setPostMetaData($postId, $authorKey, $author);
+    }
+
+    /**
+     * Adds meta data to the given post.
+     * NOTE: The current meta data with the same key on the given post, is removed!
+     * @param int $postId the post id to add the metadata to
+     * @param string $metaKey the key of the metadata
+     * @param string $metaValue the value of the metadata
+     */
+    private function setPostMetaData($postId, $metaKey, $metaValue)
+    {
+        delete_post_meta($postId, $metaKey);
+        add_post_meta($postId, $metaKey, $metaValue);
     }
 }
