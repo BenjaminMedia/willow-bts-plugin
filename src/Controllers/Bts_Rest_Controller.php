@@ -205,6 +205,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
             // post title/content goes here
             $title = '';
             $content = '';
+            $metaInternalComment = '';
             // list of acf fields goes here
             $acfFields = [];
             /** @var \SimpleXMLElement $element */
@@ -214,7 +215,9 @@ class Bts_Rest_Controller extends WP_REST_Controller
                 if ($element['field_key'] . '' === 'post-title') {
                     $title = $this->convertToLineBreaks($element->source .'');
                 } elseif ($element['field_key'] . '' === 'post-content') {
-                    $content = $this->convertToLineBreaks($element->source .'');
+                    $content = $this->convertToLineBreaks($element->source . '');
+                } elseif ($element['field_key'] . '' === 'meta-internal_comment') {
+                    $metaInternalComment = $this->convertToLineBreaks($element->source .'');
                 } elseif (in_array($element['field_type'], ['image', 'url'])) {
                     // skipping a few fields, since urls and images should not be changed
                     continue;
@@ -244,6 +247,9 @@ class Bts_Rest_Controller extends WP_REST_Controller
 //                'post_title' => $translation->title,
                 'post_type' => $post->post_type,
             ]);
+
+            // handling custom metabox called "meta" with field "internal_comment"
+            $this->setPostMetaData($translatedPostId, 'internal_comment', $metaInternalComment);
 
             // if a post id is NOT returned after calling wp_insert_post, log the error and skip to next language
             if (0 === $translatedPostId || $translatedPostId instanceof WP_Error) {
@@ -382,10 +388,11 @@ class Bts_Rest_Controller extends WP_REST_Controller
             // fetching the translated post, so we can display a few details from it.
             $translatedPost = get_post($translationId);
 
+            // handling nullpointers on the translated post
             $languages[] = [
                 'id' => $translationId,
-                'post_title' => $translatedPost->post_title,
-                'post_slug' => $translatedPost->post_name,
+                'post_title' => $translatedPost->post_title ?? '',
+                'post_slug' => $translatedPost->post_name ?? '',
                 'code' => $language->slug,
                 'name' => $language->name,
                 'state' => $translationId ? get_post_meta($translationId, 'bts_translation_state', true) : null,
@@ -529,6 +536,15 @@ class Bts_Rest_Controller extends WP_REST_Controller
             ],
             false
         );
+        // adding "normal" post content to the document
+        $this->addXliffTransUnit(
+            $bodyElement,
+            [
+                'key' => 'meta-internal_comment',
+                'content' => get_post_meta($post->ID, 'internal_comment'),
+            ],
+            false
+        );
 
         // fetching the collection of ACF fields we have on the current post
         $fields = $this->getAcfContent($post);
@@ -591,6 +607,10 @@ class Bts_Rest_Controller extends WP_REST_Controller
                 // fetching the row data (a row is a widget)
                 $row = the_row();
                 $rowIndex++;
+
+                if (! is_array($row)) {
+                    continue;
+                }
 
                 foreach ($row as $rowkey => $rowValue) {
                     // removing layout items
@@ -681,6 +701,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
      */
     public function copyAcfContent($fromPostId, $toPostId)
     {
+        // NOTE: perhaps test with get_fields($fromPostId, false) to avoid formatting
         $fields = get_fields($fromPostId);
         // runs through the fields, copying them from the original post, to the new copy
         foreach ($fields as $fieldName => $fieldValue) {
@@ -915,7 +936,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
 
     /**
      * Copies various other meta data, from fromPost to postID
-     * @param int $fromPost the post id to copy the data from
+     * @param int $fromPostId the post id to copy the data from
      * @param int $postId the post id to copy the data to
      */
     private function copyMetaBoxData($fromPostId, $postId)
@@ -925,6 +946,13 @@ class Bts_Rest_Controller extends WP_REST_Controller
         $author = get_post_meta($fromPostId, $authorKey);
         // saves the post meta data
         $this->setPostMetaData($postId, $authorKey, $author);
+
+        // handling meta data as well
+        $metaKey = 'internal_comment';
+        // fetching the author value
+        $metaValue = get_post_meta($fromPostId, $metaKey);
+        // saves the post meta data
+        $this->setPostMetaData($postId, $metaKey, $metaValue);
     }
 
     /**
