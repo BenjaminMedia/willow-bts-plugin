@@ -145,6 +145,9 @@ class Metabox
 
                     <?php } ?>
                 </div>
+				<div class="bts-deadline <?php echo (empty($data['deadline']) ? 'bts-field_hide' : ''); ?>">
+					<span>Deadline set:</span><span class="bts-deadline-value"><?php echo (!empty($data['deadline']) ? $data['deadline'] : ''); ?></span>
+				</div>
                 <div class="bts_extra_fields">
                     <div>
                         <label for="bts_comment">Skriv kommentar til oversætter</label>
