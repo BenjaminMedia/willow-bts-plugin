@@ -32,14 +32,20 @@ jQuery(document).ready(function($) {
 				//TODO: Do stuff with your response (manipulate DOM, alert user, …)
 
 				// clearing the fields
-				$('#js-bts_comment').val('');
-				$('#js-bts_deadline').val('');
+				$('#js-bts_comment, #js-bts_deadline, #js-bts_deadline_time, #js-bts_deadline_value').val('');
+				$('#js-bts_deadline-display').addClass('bts-field_hide');
 
 				$('.bts-language-checkbox').each(function (index, checkbox) {
 					console.log(checkbox);
-					// resetting checkbox state.
+					// resetting checkbox state.+
 					$(checkbox).prop('checked', false);
 				});
+
+				// handles the deadlinep, if it's present in the article
+				if (response.article.deadline) {
+					$('#js-bts_deadline_value').val(response.article.deadline);
+					$('#js-bts_deadline').removeClass('bts-field_hide');
+				}
 
 				// updating language states
 				$.each(response.article.languages, function (index, langauge) {
