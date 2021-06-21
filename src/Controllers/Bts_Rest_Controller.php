@@ -837,8 +837,10 @@ class Bts_Rest_Controller extends WP_REST_Controller
             case 'fi':
                 return 'fi';
             case 'da':
-            default:
                 return 'da';
+            default:
+                // if we do not know the language, just try to set it "as is"
+                return $language;
         }
     }
 
