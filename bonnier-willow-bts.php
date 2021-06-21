@@ -3,7 +3,7 @@
 /**
  * Plugin Name: Bonnier Willow BTS
  * Description: Plugin to add translations to a Willow site, using the BTS service.
- * Version: 0.2.18
+ * Version: 0.2.20
  * Author: Bonnier Publications
  * Author URI: https://bonnierpublications.com
  */

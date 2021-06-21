@@ -84,9 +84,12 @@ class Bts_Rest_Controller extends WP_REST_Controller
         // fetches the list of languages to translate the post into.
         $locales = explode(',', $request->get_param('languages'));
 
+        // building the message data to send to BTS
+        $messageData = $this->buildMessageData($post, $locales, $request->get_body_params());
+        // sending the message data to BTS
         $this->getClient()->publish([
             'TopicArn' => $this->getTopicTranslateRequest(),
-            'Message' => \json_encode($this->buildMessageData($post, $locales, $request->get_body_params())),
+            'Message' => \json_encode($messageData),
         ]);
 
         // fetching the current list of translations.
@@ -108,6 +111,10 @@ class Bts_Rest_Controller extends WP_REST_Controller
             $translations[$locale] = $translatedPostId;
 
             $this->setMetaState($translatedPostId, self::STATE_SENT_TO_TRANSLATION);
+            // saving deadline as metadata on the translations, so we can see when we are expecting them back
+            if (! empty($messageData['deadline'])) {
+                $this->setPostMetaData($translatedPostId, 'bts_deadline', $messageData['deadline']);
+            }
         }
 
         pll_save_post_translations($translations);
@@ -191,10 +198,12 @@ class Bts_Rest_Controller extends WP_REST_Controller
             return new WP_Error(404, 'Err: 2: Could not find post with message id: ' . $messageData->external_id);
         }
 
-        $translations = [];
+        // fetching all currently know translations, for the given post.
+        // NOTE: the given post is set as the "main/original" post, so there is no need for the step after this.
+        $translations = pll_get_post_translations($post->ID);
         // adding the original post to our list of translations, as the "post to update",
         // since we need a post to save all the associated translations to. (@see pll_save_post_translations)
-        $translations[pll_get_post_language($post->ID)] = $post->ID;
+//        $translations[pll_get_post_language($post->ID)] = $post->ID;
 
         // running through the translations, updating them using the given message data
         foreach ($messageData->translations as $translation) {
@@ -353,8 +362,21 @@ class Bts_Rest_Controller extends WP_REST_Controller
         $post = get_post($postId);
         $postLanguage = pll_get_post_language($post->ID);
 
+        $deadline = get_post_meta($postId, 'bts_deadline');
+        if (! empty($deadline)) {
+//            list($deadlineDate, $deadlineTime) = explode(' ', array_shift($deadline));
+//            $deadlineString = (new \DateTime($deadlineDate))->format('d/m/Y');
+//
+//            if (! empty($deadlineTime)) {
+//                $deadlineString .= ' ' . $deadlineTime;
+//            }
+
+            $deadline = array_shift($deadline);
+        }
+
         return [
             'post_id' => $post->ID,
+            'deadline' => (!empty($deadline) ? $deadline : ''),
             'language' => $postLanguage,
             'languages' => $this->getLanguages($post->ID),
             'acf_data' => $this->getAcfContent($post),
@@ -817,8 +839,10 @@ class Bts_Rest_Controller extends WP_REST_Controller
             case 'fi':
                 return 'fi';
             case 'da':
-            default:
                 return 'da';
+            default:
+                // if we do not know the language, just try to set it "as is"
+                return $language;
         }
     }
 
