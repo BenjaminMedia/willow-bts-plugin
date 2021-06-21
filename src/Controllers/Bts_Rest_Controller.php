@@ -198,10 +198,12 @@ class Bts_Rest_Controller extends WP_REST_Controller
             return new WP_Error(404, 'Err: 2: Could not find post with message id: ' . $messageData->external_id);
         }
 
-        $translations = [];
+        // fetching all currently know translations, for the given post.
+        // NOTE: the given post is set as the "main/original" post, so there is no need for the step after this.
+        $translations = pll_get_post_translations($post->ID);
         // adding the original post to our list of translations, as the "post to update",
         // since we need a post to save all the associated translations to. (@see pll_save_post_translations)
-        $translations[pll_get_post_language($post->ID)] = $post->ID;
+//        $translations[pll_get_post_language($post->ID)] = $post->ID;
 
         // running through the translations, updating them using the given message data
         foreach ($messageData->translations as $translation) {
