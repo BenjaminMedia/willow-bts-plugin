@@ -3,7 +3,7 @@
 /**
  * Plugin Name: Bonnier Willow BTS
  * Description: Plugin to add translations to a Willow site, using the BTS service.
- * Version: 0.2.20
+ * Version: 0.2.21
  * Author: Bonnier Publications
  * Author URI: https://bonnierpublications.com
  */
@@ -17,35 +17,13 @@ use Bts\Metabox;
 require_once 'src/Controllers/Bts_Rest_Controller.php';
 require_once 'src/Metabox.php';
 
-// NOTE: WP5+
-//if (function_exists('enqueue_bts_editor_assets')) {
-//    /**
-//     * Loads the various scripts to use
-//     */
-//    function enqueue_bts_editor_assets() {
-//        $assets = require_once plugin_dir_path( __FILE__ ) . 'build/index.asset.php';
-//
-//        // adding the script to the admin
-//        wp_enqueue_script(
-//            'bts-script',
-//            plugin_dir_url( __FILE__ ) . '/build/index.js',
-//            $assets['dependencies'],
-//            $assets['version'],
-//            true
-//        );
-//    }
-//
-//    add_action('enqueue_block_editor_assets', 'enqueue_bts_editor_assets');
-//} else {
-    // handles loading a meta box in WP4.x
-    new Metabox();
+// handles loading a meta box in WP4.x
+new Metabox();
 
-	add_action( 'admin_enqueue_scripts', function () {
-		wp_enqueue_script('bts_widget', plugin_dir_url(__FILE__) . 'javascript/admin.js');
-		wp_enqueue_style('bts_widget', plugin_dir_url(__FILE__) . 'css/admin.css');
-	});
-
-// }
+add_action( 'admin_enqueue_scripts', function () {
+	wp_enqueue_script('bts_widget', plugin_dir_url(__FILE__) . 'javascript/admin.js');
+	wp_enqueue_style('bts_widget', plugin_dir_url(__FILE__) . 'css/admin.css');
+});
 
 // adding rest routes, using a rest controller, so we do not have the entire implementation here
 // TODO: add "Resource Discovery"

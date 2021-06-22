@@ -227,7 +227,7 @@ class Bts_Rest_Controller extends WP_REST_Controller
                     $content = $this->convertToLineBreaks($element->source . '');
                 } elseif ($element['field_key'] . '' === 'meta-internal_comment') {
                     $metaInternalComment = $this->convertToLineBreaks($element->source .'');
-                } elseif (in_array($element['field_type'], ['image', 'url'])) {
+                } elseif (in_array($element['field_type'], ['image', 'url', 'file'])) {
                     // skipping a few fields, since urls and images should not be changed
                     continue;
                 } else {
