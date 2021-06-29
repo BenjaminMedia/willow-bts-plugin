@@ -8,6 +8,10 @@ same post / page, and uses a service called
 Bonnier Translation Service (BTS for short) to mediate
 between Wordpress and LanguageWire.
 
+## Important
+
+This plugin is only used on **FordelsZonen** to translate the articles.
+
 ## Requirements
 
 * Wordpress 4.9 or higher

@@ -65,6 +65,16 @@ class Bts_Rest_Controller extends WP_REST_Controller
                 'callback' => [$this, 'getArticle'],
             ]
         );
+
+        // route for copying acf data from one article to the next (mostly for test purposes)
+        register_rest_route(
+            $routeNamespace,
+            '/articles/(?P<from_id>\d+)/copyto/(?P<to_id>\d+)',
+            [
+                'methods' => WP_REST_Server::EDITABLE,
+                'callback' => [$this, 'copyPostAction'],
+            ]
+        );
     }
 
     /**
@@ -167,6 +177,32 @@ class Bts_Rest_Controller extends WP_REST_Controller
     }
 
     /**
+     * Handles copying the acf post content from one post to the other.
+     * This is only used in test/support purposes. The underlying method is
+     * run when you call copyPost()
+     * @param WP_REST_Request $request
+     * @return WP_Error
+     */
+    public function copyPostAction(WP_REST_Request $request)
+    {
+        $fromPostId = $request->get_param('from_id');
+        $toPostId = $request->get_param('to_id');
+
+        $fromPost = get_post($fromPostId);
+        $toPost = get_post($toPostId);
+
+        if (empty($fromPost)) {
+            return new WP_Error('Cannot find FROM post with id: ' . $fromPostId, 404);
+        }
+        if (empty($toPost)) {
+            return new WP_Error('Cannot find TO post with id: ' . $toPostId, 404);
+        }
+
+        $this->copyAcfContent($fromPostId, $toPostId);
+
+    }
+
+    /**
      * Handles incoming calls from AWS SNS
      * @param WP_REST_Request $request
      * @return WP_Error|WP_REST_Response
@@ -227,8 +263,8 @@ class Bts_Rest_Controller extends WP_REST_Controller
                     $content = $this->convertToLineBreaks($element->source . '');
                 } elseif ($element['field_key'] . '' === 'meta-internal_comment') {
                     $metaInternalComment = $this->convertToLineBreaks($element->source .'');
-                } elseif (in_array($element['field_type'], ['image', 'url', 'file'])) {
-                    // skipping a few fields, since urls and images should not be changed
+                } elseif (in_array($element['field_type'], ['image', 'url', 'file', 'taxonomy'])) {
+                    // skipping a few fields, since urls and images and taxonomy should not be changed
                     continue;
                 } else {
                     // handling ACF fields
@@ -723,14 +759,41 @@ class Bts_Rest_Controller extends WP_REST_Controller
      */
     public function copyAcfContent($fromPostId, $toPostId)
     {
+        // fetching the language of the post, acf data should be copied to
+        $toPostLanguage = pll_get_post_language($toPostId);
         // NOTE: perhaps test with get_fields($fromPostId, false) to avoid formatting
         $fields = get_fields($fromPostId);
         // runs through the fields, copying them from the original post, to the new copy
         foreach ($fields as $fieldName => $fieldValue) {
-            // a flexible content field, is just a single field.
-            // the value of it, should just be copied 1to1, as this will create
-            // all the different "rows" in the blocks. Easy peasy... :)
-            update_field($fieldName, $fieldValue, $toPostId);
+            // handles "singular" taxonomy fields, by getting the correct polylang version of the field, and manually
+            // updating the field.
+            if ($fieldValue instanceof \WP_Term) {
+                // finding the term id, in the given language
+                $pllTermId = pll_get_term($fieldValue->term_id, $toPostLanguage);
+                // fetching the found term
+                $pllTerm = get_term($pllTermId, $fieldValue->taxonomy);
+                // updating the term value, on the translated post
+                update_field($fieldName, $pllTerm, $toPostId);
+            }
+            // testing for terms, on multi select fields
+            elseif (is_array($fieldValue) && !empty($fieldValue) && $fieldValue[0] instanceof \WP_Term) {
+                // creating a list of terms to add to the field
+                $terms = [];
+                foreach ($fieldValue as $fieldTerm) {
+                    // finding the term id, in the given language
+                    $pllTermId = pll_get_term($fieldTerm->term_id, $toPostLanguage);
+                    // fetching the found term
+                    $terms[] = (string)$pllTermId;
+                }
+
+                // updating the term value, on the translated post
+                update_field($fieldName, $terms, $toPostId);
+            } else {
+                // a flexible content field, is just a single field.
+                // the value of it, should just be copied 1to1, as this will create
+                // all the different "rows" in the blocks. Easy peasy... :)
+                update_field($fieldName, $fieldValue, $toPostId);
+            }
         }
     }
 
